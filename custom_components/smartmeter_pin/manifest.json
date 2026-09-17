@@ -1,0 +1,11 @@
+{
+  "domain": "smartmeter_pin",
+  "name": "IR Smart Meter PIN",
+  "version": "1.7.0",
+  "codeowners": ["@Mosher23"],
+  "config_flow": true,
+  "dependencies": ["matter"],
+  "documentation": "https://github.com/Mosher23/IR-Thread-Meter",
+  "issue_tracker": "https://github.com/Mosher23/IR-Thread-Meter/issues",
+  "iot_class": "cloud_polling"
+}

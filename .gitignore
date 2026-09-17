@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+firmware/build*/
+firmware/managed_components/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/sdkconfig.internal
+firmware/sdkconfig.external
+firmware/sdkconfig.ota
+dist/
+*.bin
+*.ota
+*.elf
+*.map

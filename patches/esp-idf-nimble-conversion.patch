@@ -1,0 +1,8 @@
+diff --git a/components/bt/porting/include/os/os_mbuf.h b/components/bt/porting/include/os/os_mbuf.h
+--- a/components/bt/porting/include/os/os_mbuf.h
++++ b/components/bt/porting/include/os/os_mbuf.h
+@@ -229,2 +229,2 @@ _os_mbuf_trailingspace(struct os_mbuf *om)
+-    return (&om->om_databuf[0] + omp->omp_databuf_len) -
+-           (om->om_data + om->om_len);
++    return (uint16_t) ((&om->om_databuf[0] + omp->omp_databuf_len) -
++                       (om->om_data + om->om_len));

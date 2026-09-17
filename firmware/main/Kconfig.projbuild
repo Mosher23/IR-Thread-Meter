@@ -1,0 +1,115 @@
+menu "Smart-meter reader"
+
+config SMARTMETER_UART_NUM
+    int "UART peripheral"
+    range 0 1
+    default 1
+
+config SMARTMETER_UART_BAUD
+    int "SML UART baud rate"
+    default 9600
+
+config SMARTMETER_UART_RX_GPIO
+    int "IR head TX -> ESP RX GPIO"
+    range 0 30
+    default 17
+    help
+        GPIO17 is D7/RX on the Seeed XIAO ESP32-C6.
+
+config SMARTMETER_UART_TX_GPIO
+    int "ESP TX -> IR head RX GPIO"
+    range 0 30
+    default 16
+    help
+        GPIO16 is D6/TX on the Seeed XIAO ESP32-C6. The connection is optional
+        for meters that continuously transmit SML.
+
+config SMARTMETER_IR_TX_INVERTED
+    bool "Invert the UART TX signal used by the IR emitter"
+    default n
+    help
+        Leave disabled for a normal TTL UART Schreib/Lesekopf. Enable only if
+        the head's IR LED is off when TX is low and on when TX is high.
+
+config SMARTMETER_PIN_SHORT_FLASH_MS
+    int "Optical PIN short-flash duration (ms)"
+    range 100 4000
+    default 500
+
+config SMARTMETER_PIN_FLASH_GAP_MS
+    int "Gap between optical flashes (ms)"
+    range 100 4000
+    default 500
+
+config SMARTMETER_PIN_WAKE_SETTLE_MS
+    int "Wait after the two PIN-entry activation flashes (ms)"
+    range 500 10000
+    default 1500
+
+config SMARTMETER_PIN_DIGIT_WAIT_MS
+    int "Wait for the meter to advance to the next PIN digit (ms)"
+    range 3000 10000
+    default 3200
+
+config SMARTMETER_LED_GPIO
+    int "Status LED GPIO"
+    range 0 30
+    default 15
+
+config SMARTMETER_LED_ACTIVE_LOW
+    bool "Status LED is active-low"
+    default y
+
+choice SMARTMETER_ANTENNA_SELECTION
+    prompt "XIAO ESP32-C6 RF antenna"
+    default SMARTMETER_INTERNAL_ANTENNA
+
+config SMARTMETER_INTERNAL_ANTENNA
+    bool "Built-in ceramic antenna"
+
+config SMARTMETER_EXTERNAL_ANTENNA
+    bool "External U.FL/IPEX antenna"
+
+endchoice
+
+config SMARTMETER_REQUIRE_BOARD_CONFIG
+    bool "Require saved board configuration (universal OTA builds)"
+    default n
+    help
+        Enable for OTA releases. USB bootstrap builds initialize the saved
+        antenna choice once; subsequent OTA builds must never guess it.
+
+config SMARTMETER_RF_SWITCH_ENABLE_GPIO
+    int "RF-switch control-enable GPIO"
+    range 0 30
+    default 3
+    help
+        GPIO3 must be driven low before changing the antenna selection.
+
+config SMARTMETER_RF_SWITCH_SELECT_GPIO
+    int "RF-switch antenna-select GPIO"
+    range 0 30
+    default 14
+    help
+        Low selects the internal ceramic antenna; high selects the external
+        U.FL/IPEX connector on the Seeed XIAO ESP32-C6.
+
+config SMARTMETER_FACTORY_RESET_GPIO
+    int "Factory-reset button GPIO"
+    range 0 30
+    default 9
+    help
+        Hold the XIAO BOOT button for five seconds while the application is
+        running to erase Matter fabrics and Thread credentials.
+
+config SMARTMETER_MIN_UPDATE_INTERVAL_SECONDS
+    int "Minimum Matter report interval (seconds)"
+    range 1 3600
+    default 5
+
+config SMARTMETER_MAX_UPDATE_INTERVAL_SECONDS
+    int "Maximum Matter report interval (seconds)"
+    range 10 86400
+    default 3600
+
+endmenu

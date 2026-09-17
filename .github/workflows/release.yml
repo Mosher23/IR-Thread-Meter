@@ -1,0 +1,72 @@
+name: Build and attach Matter firmware
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  firmware:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test OTA validation
+        run: python -m unittest discover -s tests -v
+      - name: Test SML identity parser
+        run: c++ -std=c++17 -Wall -Wextra firmware/tests/test_sml_identity.cpp -o "$RUNNER_TEMP/sml-test" && "$RUNNER_TEMP/sml-test"
+      - name: Install build prerequisites
+        run: sudo apt-get update && sudo apt-get install -y git wget flex bison gperf cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0 python3-venv
+      - name: Install pinned SDKs
+        shell: bash
+        run: |
+          git clone --recursive --shallow-submodules --branch v5.5.5 --depth 1 https://github.com/espressif/esp-idf.git "$RUNNER_TEMP/esp-idf"
+          git -C "$RUNNER_TEMP/esp-idf" apply --unidiff-zero "$GITHUB_WORKSPACE/patches/esp-idf-nimble-conversion.patch"
+          "$RUNNER_TEMP/esp-idf/install.sh" esp32c6
+          source "$RUNNER_TEMP/esp-idf/export.sh"
+          git init "$RUNNER_TEMP/esp-matter"
+          git -C "$RUNNER_TEMP/esp-matter" remote add origin https://github.com/espressif/esp-matter.git
+          git -C "$RUNNER_TEMP/esp-matter" fetch --depth 1 origin c91ddfbb08ccc74bb73dd6eca7422178f48b75e1
+          git -C "$RUNNER_TEMP/esp-matter" checkout --detach FETCH_HEAD
+          git -C "$RUNNER_TEMP/esp-matter" submodule update --init --depth 1
+          cd "$RUNNER_TEMP/esp-matter/connectedhomeip/connectedhomeip"
+          python scripts/checkout_submodules.py --shallow --platform esp32
+          cd "$RUNNER_TEMP/esp-matter"
+          ./install.sh --no-host-tool
+      - name: Build USB variants and universal OTA
+        shell: bash
+        run: |
+          source "$RUNNER_TEMP/esp-idf/export.sh"
+          source "$RUNNER_TEMP/esp-matter/export.sh"
+          bash scripts/build.sh internal
+          bash scripts/build.sh external
+          bash scripts/build.sh ota
+          python scripts/package_release.py --output dist/release
+      - name: Verify release tag
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: python -c 'import json,os; m=json.load(open("dist/release/ota-manifest.json")); assert os.environ["RELEASE_TAG"] == "v"+m["version_string"], "Release tag does not match firmware version"'
+      - name: Attach standalone files (manifest last)
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        shell: bash
+        run: |
+          # Never replace published assets: each release/version is immutable.
+          for file in dist/release/*; do
+            if [[ "$(basename "$file")" != ota-manifest.json ]]; then
+              gh release upload "$RELEASE_TAG" "$file"
+            fi
+          done
+          gh release upload "$RELEASE_TAG" dist/release/ota-manifest.json
