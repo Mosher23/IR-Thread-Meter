@@ -48,8 +48,7 @@ public:
     CHIP_ERROR SetActivePowerMilliwatts(int64_t value);
 
 private:
-    // HA only discovers the standard Power entity when ActivePower is
-    // non-null during its first Matter interview. Report zero until the first
-    // valid SML reading; the separate OBIS diagnostic tracks real data.
-    NullableInt64 mActivePower{0};
+    // No power measurement is available until the first valid SML reading.
+    // A synthetic zero would corrupt power history and derived statistics.
+    NullableInt64 mActivePower{chip::app::DataModel::NullNullable};
 };

@@ -9,13 +9,16 @@ The first release (`v1.7`) is a **USB-only migration**. It adds a persistent
 antenna setting, updated partition table, and bootloader rollback. It cannot
 safely be installed over Thread from older v1.6 firmware. Flash it once for
 your internal/external antenna using the [migration guide](BOOTSTRAP_AND_OTA.md).
-`v1.8` (numeric Matter version 9) can then be installed via the companion
-**Github OTA Firmware** entity in Home Assistant after its release assets are
-published. Nothing installs automatically; the user must click Install.
+Later versions, including this v1.9 candidate (numeric Matter version 10),
+can be installed via the companion **Github OTA Firmware** entity in Home
+Assistant once their release assets are published. Nothing installs
+automatically; the user must click Install.
 
-The companion integration reads meter power, diagnostics, and firmware version
-together every 30 seconds. It provides a Power sensor even if HA missed its native Matter Power
-entity during initial discovery. To enter a PIN, set the **Meter PIN** field,
+The companion integration reads meter diagnostics and firmware version every 30
+seconds. Power is exposed only by Home Assistant's native Matter integration;
+it remains unknown until the meter sends a valid SML power reading. When adding
+the Matter device to Home Assistant for the first time, keep the IR head on the
+meter so Power is non-null during discovery. To enter a PIN, set the **Meter PIN** field,
 then press **Send Meter PIN** within two minutes. The actual PIN stays only in
 memory; HA state/history receive a masked placeholder. The button clears the
 staged PIN whether sending succeeds or fails.

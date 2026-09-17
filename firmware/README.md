@@ -10,7 +10,7 @@ over the ESP32-C6's built-in Thread radio.
 - Manufacturer: `SimpleIdeas`
 - Product and commissionable name: `IR Power Meter`
 - Development VID/PID: `0xFFF1` / `0x8000`
-- Software version: `8` (`1.7`, USB-only bootstrap for later OTA)
+- Software version: `10` (`1.9`; `1.7` was the USB-only OTA bootstrap)
 - Hardware version: `1` (`1.0`)
 - Development serial number: `00000001`
 - ESP-IDF project name: `IR_Meter_Thread_Matter`
@@ -31,6 +31,10 @@ The default data model publishes:
 
 Unlike the original Zigbee version, no ioBroker or Zigbee2MQTT converter is
 needed. A Matter controller reads the standard Matter energy clusters.
+Active power remains null until the first valid SML power reading; the reader
+does not invent a zero during startup. For Home Assistant commissioning, attach
+the IR head to a transmitting meter first so its native Matter Power entity is
+discovered.
 The two identity diagnostics remain empty if the meter does not transmit those
 OBIS entries. Binary octet strings are displayed as uppercase hexadecimal;
 printable values are displayed as text. The reader's own Matter vendor, product,

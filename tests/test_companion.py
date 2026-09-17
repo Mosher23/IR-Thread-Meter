@@ -1,4 +1,4 @@
-"""Offline contract tests for the HA companion's power and PIN UI."""
+"""Offline contract tests for the HA companion's diagnostics and PIN UI."""
 
 import asyncio
 import importlib.util
@@ -56,6 +56,8 @@ class SendKey:
 package = module("companion_test", __path__=[str(ROOT)], SmartMeterRuntimeData=object)
 stubs = {
     "companion_test": package,
+    "homeassistant": module("homeassistant", __path__=[]),
+    "homeassistant.helpers": module("homeassistant.helpers", __path__=[]),
     "matter_server.common.helpers.util": module(
         "util", create_attribute_path=lambda endpoint, cluster, attribute: f"{endpoint}/{cluster}/{attribute}"
     ),
@@ -69,24 +71,20 @@ stubs = {
     ),
     "homeassistant.components.binary_sensor": module("binary_sensor", BinarySensorEntity=FakeEntity),
     "homeassistant.components.button": module("button", ButtonEntity=FakeEntity),
-    "homeassistant.components.sensor": module(
-        "sensor", SensorEntity=FakeEntity,
-        SensorDeviceClass=types.SimpleNamespace(POWER="power"),
-        SensorStateClass=types.SimpleNamespace(MEASUREMENT="measurement"),
-    ),
+    "homeassistant.components.sensor": module("sensor", SensorEntity=FakeEntity),
     "homeassistant.components.text": module(
         "text", TextEntity=FakeEntity, TextMode=types.SimpleNamespace(PASSWORD="password")
     ),
     "homeassistant.config_entries": module("config_entries", ConfigEntry=object),
     "homeassistant.const": module(
         "const", EntityCategory=types.SimpleNamespace(CONFIG="config", DIAGNOSTIC="diagnostic"),
-        UnitOfPower=types.SimpleNamespace(WATT="W"),
     ),
     "homeassistant.core": module("core", HomeAssistant=object, callback=lambda fn: fn),
     "homeassistant.exceptions": module("exceptions", HomeAssistantError=HAError),
     "homeassistant.helpers.entity_platform": module(
         "entity_platform", AddEntitiesCallback=object
     ),
+    "homeassistant.helpers.entity_registry": module("entity_registry", async_get=lambda _hass: None),
     "homeassistant.helpers.update_coordinator": module(
         "update_coordinator", DataUpdateCoordinator=FakeCoordinator,
         CoordinatorEntity=FakeCoordinatorEntity, UpdateFailed=HAError,
@@ -145,23 +143,39 @@ class CompanionTests(unittest.IsolatedAsyncioTestCase):
         self.coordinator = coordinator.SmartMeterCoordinator(None, self.client, 5, 1)
         self.runtime = Runtime(self.client, self.coordinator)
 
-    async def test_one_poll_reads_power_and_all_diagnostics(self):
-        self.client.read_attribute.return_value = {"1/144/8": 524000}
+    async def test_one_poll_reads_all_diagnostics_without_duplicate_power(self):
+        self.client.read_attribute.return_value = {"0/40/9": 9}
         data = await self.coordinator._async_update_data()
-        self.assertEqual(data["1/144/8"], 524000)
+        self.assertEqual(data["0/40/9"], 9)
         paths = self.client.read_attribute.await_args.args[1]
-        self.assertEqual(len(paths), 6)
-        self.assertIn("1/144/8", paths)
+        self.assertEqual(len(paths), 5)
+        self.assertNotIn("1/144/8", paths)
         self.assertIn("0/40/9", paths)
         self.assertIn("0/40/10", paths)
         self.assertEqual(self.coordinator.update_interval.total_seconds(), 30)
 
-    async def test_power_is_watts_and_null_is_unknown(self):
-        entity = sensor.MeterActivePowerSensor(self.runtime)
-        self.coordinator.data = {"1/144/8": 524000}
-        self.assertEqual(entity.native_value, 524)
-        self.coordinator.data = {"1/144/8": None}
-        self.assertIsNone(entity.native_value)
+    async def test_sensor_platform_only_adds_meter_identity(self):
+        entities = []
+        entry = types.SimpleNamespace(runtime_data=self.runtime, entry_id="companion-entry")
+        registry = types.SimpleNamespace(async_get_entity_id=lambda *_: None)
+        with patch.object(sensor.er, "async_get", return_value=registry):
+            await sensor.async_setup_entry(None, entry, entities.extend)
+        self.assertEqual([entity._attr_name for entity in entities], ["Meter ID", "Meter manufacturer"])
+
+    async def test_removes_only_its_legacy_power_entity(self):
+        removed = []
+        entry = types.SimpleNamespace(runtime_data=self.runtime, entry_id="companion-entry")
+        registry = types.SimpleNamespace(
+            async_get_entity_id=lambda *_: "sensor.legacy_power",
+            async_get=lambda _entity_id: types.SimpleNamespace(config_entry_id="other-entry"),
+            async_remove=removed.append,
+        )
+        with patch.object(sensor.er, "async_get", return_value=registry):
+            await sensor.async_setup_entry(None, entry, lambda _: None)
+            self.assertEqual(removed, [])
+            registry.async_get = lambda _entity_id: types.SimpleNamespace(config_entry_id=entry.entry_id)
+            await sensor.async_setup_entry(None, entry, lambda _: None)
+        self.assertEqual(removed, ["sensor.legacy_power"])
 
     async def test_pin_requires_explicit_button_and_never_enters_state(self):
         field = text.MeterPinTextEntity(self.runtime)

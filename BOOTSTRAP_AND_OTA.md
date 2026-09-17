@@ -86,14 +86,14 @@ python scripts/package_release.py --output dist/release
 The two **USB bootstrap** builds choose an initial antenna. The universal
 **OTA** build refuses to boot without a previously stored antenna selection.
 `v1.7` packages only USB assets and a `delivery: usb` manifest—no `.ota` file.
-The v1.8 source uses numeric Matter version `9` in
+The v1.9 source uses numeric Matter version `10` in
 `firmware/main/MatterProjConfig.h`, `firmware/CMakeLists.txt`, and
-`firmware/sdkconfig.defaults`, with string version `1.8` in the first two.
+`firmware/sdkconfig.defaults`, with string version `1.9` in the first two.
 Increment all version markers together for later releases. The packaging
 script refuses stale builds and oversize apps.
 
 Push validated source, then create a stable GitHub release tagged exactly
-`v1.7` or, for the next version, `v1.8`. GitHub Actions builds the pinned SDK,
+`v1.9` for this version. GitHub Actions builds the pinned SDK,
 tests the parser, checks the tag, and attaches individual assets with
 `ota-manifest.json` **last**. Never publish two antenna `.ota` images with the
 same VID/PID/version. Test a future image on an accessible meter before

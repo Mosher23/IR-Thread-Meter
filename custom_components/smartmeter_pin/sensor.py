@@ -4,17 +4,18 @@ from __future__ import annotations
 
 from matter_server.common.helpers.util import create_attribute_path
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory, UnitOfPower
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import SmartMeterRuntimeData
-from .coordinator import ACTIVE_POWER_ATTRIBUTE_ID, POWER_CLUSTER_ID
 from .const import (
     DIAGNOSTICS_CLUSTER_ID,
+    DOMAIN,
     METER_ID_ATTRIBUTE_ID,
     METER_MANUFACTURER_ATTRIBUTE_ID,
 )
@@ -23,8 +24,16 @@ from .const import (
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Add SML identity fields and a direct standard Matter Power sensor."""
+    """Add SML identity fields; power is provided by the Matter integration."""
     runtime = entry.runtime_data
+    registry = er.async_get(hass)
+    legacy_power_id = registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{runtime.node_id}-meter-active-power"
+    )
+    if legacy_power_id is not None:
+        legacy_power = registry.async_get(legacy_power_id)
+        if legacy_power is not None and legacy_power.config_entry_id == entry.entry_id:
+            registry.async_remove(legacy_power_id)
     async_add_entities(
         [
             MeterIdentitySensor(runtime, METER_ID_ATTRIBUTE_ID, "Meter ID", "identifier"),
@@ -34,7 +43,6 @@ async def async_setup_entry(
                 "Meter manufacturer",
                 "factory",
             ),
-            MeterActivePowerSensor(runtime),
         ]
     )
 
@@ -69,34 +77,3 @@ class MeterIdentitySensor(CoordinatorEntity, SensorEntity):
         if isinstance(value, bytes):
             value = value.decode("ascii", errors="replace")
         return value if isinstance(value, str) and value else None
-
-
-class MeterActivePowerSensor(CoordinatorEntity, SensorEntity):
-    """Expose ActivePower even if HA skipped native Matter discovery."""
-
-    _attr_has_entity_name = True
-    _attr_name = "Power"
-    _attr_icon = "mdi:flash"
-    _attr_device_class = SensorDeviceClass.POWER
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = UnitOfPower.WATT
-    _attr_suggested_display_precision = 1
-
-    def __init__(self, runtime: SmartMeterRuntimeData) -> None:
-        super().__init__(runtime.coordinator)
-        self._attr_unique_id = f"{runtime.node_id}-meter-active-power"
-        self._attr_device_info = {
-            "identifiers": {("smartmeter_pin", runtime.device_id)},
-            "name": "IR Smart Meter",
-        }
-        self._attribute_path = create_attribute_path(
-            runtime.endpoint_id, POWER_CLUSTER_ID, ACTIVE_POWER_ATTRIBUTE_ID
-        )
-
-    @property
-    def native_value(self) -> float | None:
-        """Matter power is signed milliwatts; Home Assistant displays watts."""
-        value = (self.coordinator.data or {}).get(self._attribute_path)
-        if type(value) is not int:
-            return None
-        return value / 1000

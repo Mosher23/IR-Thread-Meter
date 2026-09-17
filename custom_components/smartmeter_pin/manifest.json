@@ -1,7 +1,7 @@
 {
   "domain": "smartmeter_pin",
   "name": "IR Smart Meter",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "codeowners": ["@Mosher23"],
   "config_flow": true,
   "dependencies": ["matter"],

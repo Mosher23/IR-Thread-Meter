@@ -1,4 +1,4 @@
-"""Fetch meter diagnostics and power in one bounded Matter read."""
+"""Fetch meter diagnostics and software version in one bounded Matter read."""
 
 from __future__ import annotations
 
@@ -19,9 +19,6 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Matter Electrical Power Measurement / ActivePower. The value is in mW.
-POWER_CLUSTER_ID = 0x0090
-ACTIVE_POWER_ATTRIBUTE_ID = 0x0008
 POLL_INTERVAL = timedelta(seconds=30)
 
 
@@ -45,9 +42,6 @@ class SmartMeterCoordinator(DataUpdateCoordinator[dict[str, object]]):
                 METER_MANUFACTURER_ATTRIBUTE_ID,
             )
         ]
-        self.paths.append(
-            create_attribute_path(endpoint_id, POWER_CLUSTER_ID, ACTIVE_POWER_ATTRIBUTE_ID)
-        )
         # Basic Information software version and string, for prompt HA update
         # entity refresh after an OTA reboot rather than a multi-minute wait.
         self.paths.extend(("0/40/9", "0/40/10"))
