@@ -176,8 +176,8 @@ Thread failures.
 - The GPIO15 user LED slowly breathes while the firmware is running.
 - Every CRC-valid SML frame produces a short full-brightness LED pulse, after
   which the breathing animation resumes.
-- At startup, the serial log reports either `RF antenna: internal ceramic` or
-  `RF antenna: external U.FL/IPEX`.
+- At startup, the serial log reports `Saved RF antenna: internal` or
+  `Saved RF antenna: external`.
 - Reports are emitted only after the complete SML frame passes its CRC check.
 - Hold BOOT for five seconds while the firmware is running to erase Matter
   fabrics and Thread credentials.
