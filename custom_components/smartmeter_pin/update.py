@@ -95,7 +95,11 @@ class GitHubFirmwareUpdate(UpdateEntity):
 
     def _attributes(self):
         node = self._node()
-        return node.node_data.attributes if node else {}
+        attrs = node.node_data.attributes if node else {}
+        # The shared 30-second read is fresher than Matter Server's periodic
+        # node-cache report immediately after a firmware change.
+        data = getattr(getattr(self._runtime, "coordinator", None), "data", None)
+        return {**attrs, **data} if data else attrs
 
     @property
     def available(self):
@@ -249,10 +253,13 @@ class GitHubFirmwareUpdate(UpdateEntity):
 
     async def async_added_to_hass(self):
         await super().async_added_to_hass()
+        coordinator = getattr(self._runtime, "coordinator", None)
+        if coordinator is not None:
+            self.async_on_remove(coordinator.async_add_listener(self._handle_update))
         for event in (EventType.ATTRIBUTE_UPDATED, EventType.NODE_UPDATED):
             self.async_on_remove(self._runtime.matter_client.subscribe_events(
                 self._handle_update, event_filter=event, node_filter=self._runtime.node_id))
 
     @callback
-    def _handle_update(self, event, data=None):
+    def _handle_update(self, event=None, data=None):
         self.async_write_ha_state()

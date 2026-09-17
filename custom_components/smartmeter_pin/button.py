@@ -51,6 +51,7 @@ class SendMeterPinButton(ButtonEntity):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
+        self.async_on_remove(self._runtime.coordinator.async_add_listener(self._handle_node_update))
         self._unsub_node = self._runtime.matter_client.subscribe_events(
             callback=self._handle_node_update,
             event_filter=EventType.NODE_UPDATED,
@@ -63,7 +64,7 @@ class SendMeterPinButton(ButtonEntity):
         await super().async_will_remove_from_hass()
 
     @callback
-    def _handle_node_update(self, event: EventType, data=None) -> None:
+    def _handle_node_update(self, event: EventType | None = None, data=None) -> None:
         self.async_write_ha_state()
 
     async def async_press(self) -> None:

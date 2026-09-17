@@ -48,6 +48,9 @@ class SmartMeterCoordinator(DataUpdateCoordinator[dict[str, object]]):
         self.paths.append(
             create_attribute_path(endpoint_id, POWER_CLUSTER_ID, ACTIVE_POWER_ATTRIBUTE_ID)
         )
+        # Basic Information software version and string, for prompt HA update
+        # entity refresh after an OTA reboot rather than a multi-minute wait.
+        self.paths.extend(("0/40/9", "0/40/10"))
 
     async def _async_update_data(self) -> dict[str, object]:
         try:

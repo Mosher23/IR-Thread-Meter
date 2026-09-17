@@ -14,8 +14,8 @@ the companion **Github OTA Firmware** entity in Home Assistant. Nothing installs
 automatically. The v1.8 source is in development; a published, compatible
 release is required before HA offers Install.
 
-The companion integration reads meter power and diagnostics together every 30
-seconds. It provides a Power sensor even if HA missed its native Matter Power
+The companion integration reads meter power, diagnostics, and firmware version
+together every 30 seconds. It provides a Power sensor even if HA missed its native Matter Power
 entity during initial discovery. To enter a PIN, set the **Meter PIN** field,
 then press **Send Meter PIN** within two minutes. The actual PIN stays only in
 memory; HA state/history receive a masked placeholder. The button clears the

@@ -89,6 +89,12 @@ class UpdateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.entity._attr_name, "Github OTA Firmware")
         self.assertEqual(self.entity._attr_icon, "mdi:github")
 
+    async def test_polled_version_overrides_stale_node_cache(self):
+        self.entity._runtime.coordinator = types.SimpleNamespace(
+            data={"0/40/9": 9, "0/40/10": "1.8"}
+        )
+        self.assertEqual(self.entity.installed_version, "1.8")
+
     async def read_attribute(self, _node_id, paths):
         if isinstance(paths, list):
             return dict(self.attrs)

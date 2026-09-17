@@ -150,8 +150,10 @@ class CompanionTests(unittest.IsolatedAsyncioTestCase):
         data = await self.coordinator._async_update_data()
         self.assertEqual(data["1/144/8"], 524000)
         paths = self.client.read_attribute.await_args.args[1]
-        self.assertEqual(len(paths), 4)
+        self.assertEqual(len(paths), 6)
         self.assertIn("1/144/8", paths)
+        self.assertIn("0/40/9", paths)
+        self.assertIn("0/40/10", paths)
         self.assertEqual(self.coordinator.update_interval.total_seconds(), 30)
 
     async def test_power_is_watts_and_null_is_unknown(self):
