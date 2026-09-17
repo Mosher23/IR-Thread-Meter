@@ -88,6 +88,7 @@ class UpdateTests(unittest.IsolatedAsyncioTestCase):
     async def test_name_and_icon_distinguish_github_ota(self):
         self.assertEqual(self.entity._attr_name, "Github OTA Firmware")
         self.assertEqual(self.entity._attr_icon, "mdi:github")
+        self.assertIsNone(self.entity.entity_picture)
 
     async def test_polled_version_overrides_stale_node_cache(self):
         self.entity._runtime.coordinator = types.SimpleNamespace(

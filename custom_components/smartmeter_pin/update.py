@@ -68,6 +68,11 @@ class GitHubFirmwareUpdate(UpdateEntity):
     _attr_should_poll = True
     _attr_in_progress = False
 
+    @property
+    def entity_picture(self) -> None:
+        """Use the GitHub MDI icon instead of HA's missing integration logo."""
+        return None
+
     def __init__(self, runtime):
         self._runtime = runtime
         self._release = None
