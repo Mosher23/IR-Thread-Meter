@@ -46,7 +46,7 @@ Install the custom integration by copying the directory
 `custom_components/smartmeter_pin` from this repository to
 `/config/custom_components/smartmeter_pin` and restart HA Core. If the
 IR Smart Meter PIN integration was previously configured, its existing entry
-stays and gains **GitHub firmware** on the companion device. Otherwise add it
+stays and gains **Github OTA Firmware** on the companion device. Otherwise add it
 in Settings → Devices & services and choose your Matter meter. HACS custom
 repository installation can also use this layout.
 
@@ -59,7 +59,9 @@ node to update. It waits for the version after reboot and the firmware's
 30-second health check before marking success. For failures inspect its
 `ota_status`, `compatibility_issue`, and `last_error` attributes.
 The native Matter **Firmware** entity may also appear: use the companion
-**GitHub firmware** entity for on-demand GitHub fetching.
+**Github OTA Firmware** entity for on-demand GitHub fetching. Its available
+version can differ from the installed version because it reflects whichever
+Matter OTA provider HA knows about; it does not mean the meter downgraded.
 
 GitHub and HA polls can take time to notice a new release; use **Update entity**
 in HA Developer Tools to refresh earlier. A v1.7 USB-only release is
@@ -84,10 +86,11 @@ python scripts/package_release.py --output dist/release
 The two **USB bootstrap** builds choose an initial antenna. The universal
 **OTA** build refuses to boot without a previously stored antenna selection.
 `v1.7` packages only USB assets and a `delivery: usb` manifest—no `.ota` file.
-For `v1.8`, increment the numeric Matter version (`8` → `9`) in
+The v1.8 source uses numeric Matter version `9` in
 `firmware/main/MatterProjConfig.h`, `firmware/CMakeLists.txt`, and
-`firmware/sdkconfig.defaults`; increment the string (`1.7` → `1.8`) in the
-first two. The packaging script refuses stale builds and oversize apps.
+`firmware/sdkconfig.defaults`, with string version `1.8` in the first two.
+Increment all version markers together for later releases. The packaging
+script refuses stale builds and oversize apps.
 
 Push validated source, then create a stable GitHub release tagged exactly
 `v1.7` or, for the next version, `v1.8`. GitHub Actions builds the pinned SDK,

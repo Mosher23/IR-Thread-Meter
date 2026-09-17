@@ -10,8 +10,16 @@ antenna setting, updated partition table, and bootloader rollback. It cannot
 safely be installed over Thread from older v1.6 firmware. Flash it once for
 your internal/external antenna using the [migration guide](BOOTSTRAP_AND_OTA.md).
 The next release (`v1.8`, numeric Matter version 9) can then be installed via
-the companion **GitHub firmware** entity in Home Assistant. Nothing installs
-automatically.
+the companion **Github OTA Firmware** entity in Home Assistant. Nothing installs
+automatically. The v1.8 source is in development; a published, compatible
+release is required before HA offers Install.
+
+The companion integration reads meter power and diagnostics together every 30
+seconds. It provides a Power sensor even if HA missed its native Matter Power
+entity during initial discovery. To enter a PIN, set the **Meter PIN** field,
+then press **Send Meter PIN** within two minutes. The actual PIN stays only in
+memory; HA state/history receive a masked placeholder. The button clears the
+staged PIN whether sending succeeds or fails.
 
 No OTA will overwrite Matter fabrics, Thread credentials or antenna selection.
 Do not erase the entire flash during the USB migration.

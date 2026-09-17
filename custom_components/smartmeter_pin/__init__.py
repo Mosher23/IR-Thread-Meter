@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import asyncio
+from dataclasses import dataclass, field
+from time import monotonic
+from typing import Callable
 
 from chip.clusters import Objects as Clusters
 
@@ -16,8 +19,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from .const import CONF_DEVICE_ID
+from .coordinator import SmartMeterCoordinator
 
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR, Platform.TEXT, Platform.UPDATE]
+PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SENSOR, Platform.TEXT, Platform.UPDATE]
 
 
 @dataclass
@@ -28,6 +32,25 @@ class SmartMeterRuntimeData:
     node_id: int
     endpoint_id: int
     device_id: str
+    coordinator: SmartMeterCoordinator
+    pending_pin: str | None = None
+    pin_expires_at: float = 0
+    clear_pin_display: Callable[[], None] | None = None
+    pin_send_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+    def stage_pin(self, pin: str) -> None:
+        """Hold a PIN only in memory until the user presses Send."""
+        self.pending_pin = pin
+        self.pin_expires_at = monotonic() + 120
+
+    def take_pin(self) -> str | None:
+        """Consume a staged PIN once, discarding expired entries."""
+        pin = self.pending_pin if monotonic() < self.pin_expires_at else None
+        self.pending_pin = None
+        self.pin_expires_at = 0
+        if self.clear_pin_display is not None:
+            self.clear_pin_display()
+        return pin
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -53,12 +76,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if matter_client.server_info is None:
         raise ConfigEntryNotReady("Matter server information is not available")
 
+    coordinator = SmartMeterCoordinator(hass, matter_client, node.node_id, endpoint.endpoint_id)
     entry.runtime_data = SmartMeterRuntimeData(
         matter_client=matter_client,
         node_id=node.node_id,
         endpoint_id=endpoint.endpoint_id,
         device_id=entry.data[CONF_DEVICE_ID],
+        coordinator=coordinator,
     )
+    # An offline meter must not prevent the PIN integration from loading.
+    await coordinator.async_refresh()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

@@ -1,8 +1,7 @@
-"""Password-style Home Assistant text entity for meter PIN entry."""
+"""Password-style field that stages a meter PIN for the Send button."""
 
 from __future__ import annotations
 
-from chip.clusters import Objects as Clusters
 from matter_server.common.models import EventType
 
 from homeassistant.components.text import TextEntity, TextMode
@@ -15,12 +14,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import SmartMeterRuntimeData
 
-# CEC Key Code values used by the standard Matter Keypad Input cluster.
-_CEC_DIGIT_ZERO = 0x20
-_CEC_SELECT = 0x00
-_CEC_CLEAR = 0x2C
-
-
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
@@ -29,7 +22,7 @@ async def async_setup_entry(
 
 
 class MeterPinTextEntity(TextEntity):
-    """Send exactly four digits over Matter Keypad Input, then clear the UI."""
+    """Hold four digits in memory, never in Home Assistant state/history."""
 
     _attr_has_entity_name = True
     _attr_name = "Meter PIN"
@@ -52,6 +45,15 @@ class MeterPinTextEntity(TextEntity):
             "name": "IR Smart Meter PIN",
         }
         self._unsub_node = None
+        runtime.clear_pin_display = self._clear_input
+
+    @property
+    def available(self) -> bool:
+        """Disable PIN entry while the Matter node is disconnected."""
+        try:
+            return bool(self._runtime.matter_client.get_node(self._runtime.node_id).available)
+        except Exception:
+            return False
 
     async def async_added_to_hass(self) -> None:
         """Refresh availability whenever the Matter node reconnects."""
@@ -66,6 +68,8 @@ class MeterPinTextEntity(TextEntity):
         """Unsubscribe from Matter updates."""
         if self._unsub_node is not None:
             self._unsub_node()
+        if self._runtime.clear_pin_display == self._clear_input:
+            self._runtime.clear_pin_display = None
         await super().async_will_remove_from_hass()
 
     @callback
@@ -74,32 +78,15 @@ class MeterPinTextEntity(TextEntity):
         self.async_write_ha_state()
 
     async def async_set_value(self, value: str) -> None:
-        """Transmit a four-digit PIN without retaining it in Home Assistant."""
+        """Stage a PIN; the separate button performs optical transmission."""
         if len(value) != 4 or not value.isdecimal() or value == "0000":
             raise HomeAssistantError("Enter a valid four-digit meter PIN")
+        self._runtime.stage_pin(value)
+        # Only a non-secret placeholder ever enters the HA state machine.
+        self._attr_native_value = "••••"
+        self.async_write_ha_state()
 
-        try:
-            # Clear a partial entry left by any interrupted prior request.
-            await self._send_key(_CEC_CLEAR)
-            for digit in value:
-                await self._send_key(_CEC_DIGIT_ZERO + int(digit))
-            await self._send_key(_CEC_SELECT)
-        except Exception as err:
-            try:
-                await self._send_key(_CEC_CLEAR)
-            except Exception:  # Best effort only; retain the original error.
-                pass
-            raise HomeAssistantError("Could not send the meter PIN") from err
-        finally:
-            # Do not persist or display the PIN after it has been sent.
-            self._attr_native_value = ""
-            self.async_write_ha_state()
-
-    async def _send_key(self, key_code: int) -> None:
-        """Send one standard Keypad Input command."""
-        command = Clusters.KeypadInput.Commands.SendKey(keyCode=key_code)
-        await self._runtime.matter_client.send_device_command(
-            node_id=self._runtime.node_id,
-            endpoint_id=self._runtime.endpoint_id,
-            command=command,
-        )
+    @callback
+    def _clear_input(self) -> None:
+        self._attr_native_value = ""
+        self.async_write_ha_state()

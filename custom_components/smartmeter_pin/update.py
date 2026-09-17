@@ -60,7 +60,8 @@ class GitHubFirmwareUpdate(UpdateEntity):
     """Poll metadata only; upload/install solely after the user presses Install."""
 
     _attr_has_entity_name = True
-    _attr_name = "GitHub firmware"
+    _attr_name = "Github OTA Firmware"
+    _attr_icon = "mdi:github"
     _attr_device_class = UpdateDeviceClass.FIRMWARE
     _attr_entity_category = EntityCategory.CONFIG
     _attr_supported_features = UpdateEntityFeature.INSTALL | UpdateEntityFeature.RELEASE_NOTES
