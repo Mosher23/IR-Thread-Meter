@@ -45,7 +45,7 @@ If it does not reconnect, diagnose Thread and power before an OTA release.
 Install the custom integration by copying the directory
 `custom_components/smartmeter_pin` from this repository to
 `/config/custom_components/smartmeter_pin` and restart HA Core. If the
-IR Smart Meter PIN integration was previously configured, its existing entry
+IR Smart Meter integration was previously configured, its existing entry
 stays and gains **Github OTA Firmware** on the companion device. Otherwise add it
 in Settings → Devices & services and choose your Matter meter. HACS custom
 repository installation can also use this layout.

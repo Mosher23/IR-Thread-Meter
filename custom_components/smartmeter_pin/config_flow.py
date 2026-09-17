@@ -1,4 +1,4 @@
-"""Configuration flow for the IR Smart Meter PIN integration."""
+"""Configuration flow for the IR Smart Meter integration."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 await self.async_set_unique_id(f"smartmeter-pin-{node.node_id}")
                 self._abort_if_unique_id_configured()
-                return self.async_create_entry(title="IR Smart Meter PIN", data=user_input)
+                return self.async_create_entry(title="IR Smart Meter", data=user_input)
 
         return self.async_show_form(
             step_id="user",

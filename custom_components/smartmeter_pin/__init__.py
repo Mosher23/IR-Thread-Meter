@@ -1,4 +1,4 @@
-"""IR Smart Meter PIN custom integration."""
+"""IR Smart Meter custom integration."""
 
 from __future__ import annotations
 
@@ -17,8 +17,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import device_registry as dr
 
-from .const import CONF_DEVICE_ID
+from .const import CONF_DEVICE_ID, DOMAIN
 from .coordinator import SmartMeterCoordinator
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SENSOR, Platform.TEXT, Platform.UPDATE]
@@ -55,6 +56,11 @@ class SmartMeterRuntimeData:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up PIN entry and diagnostics for the selected Matter meter."""
+    # Existing config entries retain their original title across integration
+    # updates. Migrate only the old default; preserve user-chosen names.
+    if entry.title == "IR Smart Meter PIN":
+        hass.config_entries.async_update_entry(entry, title="IR Smart Meter")
+
     node = node_from_ha_device_id(hass, entry.data[CONF_DEVICE_ID])
     if node is None:
         raise ConfigEntryNotReady("The selected Matter device is not available")
@@ -87,6 +93,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # An offline meter must not prevent the PIN integration from loading.
     await coordinator.async_refresh()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Likewise, rename only the companion device's old default name. A user
+    # override in the device registry must remain untouched.
+    registry = dr.async_get(hass)
+    device = registry.async_get_device_by_identifier(
+        (DOMAIN, entry.data[CONF_DEVICE_ID]), entry.entry_id
+    )
+    if device is not None and device.name == "IR Smart Meter PIN" and device.name_by_user is None:
+        registry.async_update_device(device.id, name="IR Smart Meter")
     return True
 
 

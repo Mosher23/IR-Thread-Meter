@@ -77,7 +77,7 @@ class GitHubFirmwareUpdate(UpdateEntity):
         self._attr_unique_id = f"{runtime.node_id}-github-firmware"
         self._attr_device_info = {
             "identifiers": {("smartmeter_pin", runtime.device_id)},
-            "name": "IR Smart Meter PIN",
+            "name": "IR Smart Meter",
         }
 
     def _node(self):

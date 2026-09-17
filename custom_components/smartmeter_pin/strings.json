@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "IR Smart Meter PIN",
+        "title": "IR Smart Meter",
         "description": "Choose the existing Matter smart-meter device.",
         "data": {
           "device_id": "Matter smart meter"

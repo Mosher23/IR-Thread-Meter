@@ -37,7 +37,7 @@ class ActivePowerObisSeenSensor(CoordinatorEntity, BinarySensorEntity):
         self._attr_unique_id = f"{runtime.node_id}-active-power-obis-seen"
         self._attr_device_info = {
             "identifiers": {("smartmeter_pin", runtime.device_id)},
-            "name": "IR Smart Meter PIN",
+            "name": "IR Smart Meter",
         }
         self._attribute_path = create_attribute_path(
             runtime.endpoint_id,

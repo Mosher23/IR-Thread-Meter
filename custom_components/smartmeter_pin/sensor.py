@@ -56,7 +56,7 @@ class MeterIdentitySensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{runtime.node_id}-meter-identity-{attribute_id}"
         self._attr_device_info = {
             "identifiers": {("smartmeter_pin", runtime.device_id)},
-            "name": "IR Smart Meter PIN",
+            "name": "IR Smart Meter",
         }
         self._attribute_path = create_attribute_path(
             runtime.endpoint_id, DIAGNOSTICS_CLUSTER_ID, attribute_id
@@ -87,7 +87,7 @@ class MeterActivePowerSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{runtime.node_id}-meter-active-power"
         self._attr_device_info = {
             "identifiers": {("smartmeter_pin", runtime.device_id)},
-            "name": "IR Smart Meter PIN",
+            "name": "IR Smart Meter",
         }
         self._attribute_path = create_attribute_path(
             runtime.endpoint_id, POWER_CLUSTER_ID, ACTIVE_POWER_ATTRIBUTE_ID

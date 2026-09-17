@@ -42,7 +42,7 @@ class MeterPinTextEntity(TextEntity):
         self._attr_unique_id = f"{runtime.node_id}-meter-pin"
         self._attr_device_info = {
             "identifiers": {("smartmeter_pin", runtime.device_id)},
-            "name": "IR Smart Meter PIN",
+            "name": "IR Smart Meter",
         }
         self._unsub_node = None
         runtime.clear_pin_display = self._clear_input

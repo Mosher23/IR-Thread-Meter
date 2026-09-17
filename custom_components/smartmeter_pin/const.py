@@ -1,4 +1,4 @@
-"""Constants for the IR Smart Meter PIN integration."""
+"""Constants for the IR Smart Meter integration."""
 
 from __future__ import annotations
 

@@ -38,7 +38,7 @@ class SendMeterPinButton(ButtonEntity):
         self._attr_unique_id = f"{runtime.node_id}-send-meter-pin"
         self._attr_device_info = {
             "identifiers": {("smartmeter_pin", runtime.device_id)},
-            "name": "IR Smart Meter PIN",
+            "name": "IR Smart Meter",
         }
         self._unsub_node = None
 
