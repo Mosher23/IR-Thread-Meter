@@ -9,10 +9,9 @@ The first release (`v1.7`) is a **USB-only migration**. It adds a persistent
 antenna setting, updated partition table, and bootloader rollback. It cannot
 safely be installed over Thread from older v1.6 firmware. Flash it once for
 your internal/external antenna using the [migration guide](BOOTSTRAP_AND_OTA.md).
-The next release (`v1.8`, numeric Matter version 9) can then be installed via
-the companion **Github OTA Firmware** entity in Home Assistant. Nothing installs
-automatically. The v1.8 source is in development; a published, compatible
-release is required before HA offers Install.
+`v1.8` (numeric Matter version 9) can then be installed via the companion
+**Github OTA Firmware** entity in Home Assistant after its release assets are
+published. Nothing installs automatically; the user must click Install.
 
 The companion integration reads meter power, diagnostics, and firmware version
 together every 30 seconds. It provides a Power sensor even if HA missed its native Matter Power
