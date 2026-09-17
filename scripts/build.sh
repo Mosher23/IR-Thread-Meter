@@ -9,5 +9,5 @@ case "$variant" in
   *) echo "Usage: bash scripts/build.sh internal|external|ota" >&2; exit 2 ;;
 esac
 cd "$repo_dir/firmware"
-idf.py -B "build-${variant}" -D "SDKCONFIG=sdkconfig.${variant}" \
+idf.py -B "build-${variant}" -D CCACHE_ENABLE=1 -D "SDKCONFIG=sdkconfig.${variant}" \
   -D "SDKCONFIG_DEFAULTS=$defaults" build
