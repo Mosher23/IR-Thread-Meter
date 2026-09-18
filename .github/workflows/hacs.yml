@@ -28,3 +28,7 @@ jobs:
         uses: hacs/action@main
         with:
           category: integration
+          # GitHub's code-push credential cannot edit repository topics.
+          # This is an action-only discoverability check, not a custom-repo
+          # installation check. Remove this ignore after adding topics in GitHub.
+          ignore: topics
