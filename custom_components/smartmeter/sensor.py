@@ -63,7 +63,7 @@ class MeterIdentitySensor(CoordinatorEntity, SensorEntity):
         self._attr_icon = f"mdi:{icon}"
         self._attr_unique_id = f"{runtime.node_id}-meter-identity-{attribute_id}"
         self._attr_device_info = {
-            "identifiers": {("smartmeter_pin", runtime.device_id)},
+            "identifiers": {(DOMAIN, runtime.device_id)},
             "name": "IR Smart Meter",
         }
         self._attribute_path = create_attribute_path(

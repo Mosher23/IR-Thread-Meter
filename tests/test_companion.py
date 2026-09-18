@@ -2,6 +2,7 @@
 
 import asyncio
 import importlib.util
+import json
 from pathlib import Path
 import sys
 from time import monotonic
@@ -9,7 +10,7 @@ import types
 import unittest
 from unittest.mock import AsyncMock, patch
 
-ROOT = Path(__file__).resolve().parents[1] / "custom_components/smartmeter_pin"
+ROOT = Path(__file__).resolve().parents[1] / "custom_components/smartmeter"
 
 
 def module(name, **members):
@@ -134,6 +135,10 @@ class Runtime:
 
 
 class CompanionTests(unittest.IsolatedAsyncioTestCase):
+    def test_domain_matches_install_directory(self):
+        self.assertEqual(const.DOMAIN, ROOT.name)
+        self.assertEqual(json.loads((ROOT / "manifest.json").read_text())["domain"], ROOT.name)
+
     def test_old_entry_and_device_names_drop_pin(self):
         self.assertEqual(const.normalize_legacy_name("IR Smart Meter PIN"), "IR Smart Meter")
         self.assertEqual(const.normalize_legacy_name("Smart Meter PIN"), "Smart Meter")
@@ -172,6 +177,16 @@ class CompanionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(text.MeterPinTextEntity._attr_name, "Meter PIN")
         self.assertEqual(button.SendMeterPinButton._attr_name, "Send PIN")
         self.assertEqual(binary_sensor.ActivePowerObisSeenSensor._attr_name, "OBIS Received")
+
+    def test_entity_devices_use_new_domain(self):
+        entities = [
+            sensor.MeterIdentitySensor(self.runtime, const.METER_ID_ATTRIBUTE_ID, "Meter ID", "identifier"),
+            binary_sensor.ActivePowerObisSeenSensor(self.runtime),
+            text.MeterPinTextEntity(self.runtime),
+            button.SendMeterPinButton(self.runtime),
+        ]
+        for entity in entities:
+            self.assertEqual(entity._attr_device_info["identifiers"], {("smartmeter", "meter-device")})
 
     async def test_removes_only_its_legacy_power_entity(self):
         removed = []

@@ -48,10 +48,10 @@ stubs = {
     "homeassistant.core": module("core", callback=lambda fn: fn),
     "homeassistant.exceptions": module("exceptions", HomeAssistantError=HAError),
     "homeassistant.helpers.aiohttp_client": module("aiohttp_client", async_get_clientsession=lambda hass: None),
-    "test_smartmeter": module("test_smartmeter", __path__=[str(ROOT / "custom_components/smartmeter_pin")]),
+    "test_smartmeter": module("test_smartmeter", __path__=[str(ROOT / "custom_components/smartmeter")]),
 }
 with patch.dict(sys.modules, stubs):
-    spec = importlib.util.spec_from_file_location("test_smartmeter.update", ROOT / "custom_components/smartmeter_pin/update.py")
+    spec = importlib.util.spec_from_file_location("test_smartmeter.update", ROOT / "custom_components/smartmeter/update.py")
     update = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = update
     spec.loader.exec_module(update)
@@ -89,6 +89,7 @@ class UpdateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.entity._attr_name, "OTA Firmware")
         self.assertEqual(self.entity._attr_icon, "mdi:github")
         self.assertIsNone(self.entity.entity_picture)
+        self.assertEqual(self.entity._attr_device_info["identifiers"], {("smartmeter", "device")})
 
     async def test_polled_version_overrides_stale_node_cache(self):
         self.entity._runtime.coordinator = types.SimpleNamespace(

@@ -32,7 +32,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ):
                 errors["base"] = "not_supported"
             else:
-                await self.async_set_unique_id(f"smartmeter-pin-{node.node_id}")
+                await self.async_set_unique_id(f"smartmeter-{node.node_id}")
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(title="IR Smart Meter", data=user_input)
 

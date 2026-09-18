@@ -13,6 +13,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import SmartMeterRuntimeData
+from .const import DOMAIN
 
 _CEC_DIGIT_ZERO = 0x20
 _CEC_SELECT = 0x00
@@ -37,7 +38,7 @@ class SendMeterPinButton(ButtonEntity):
         self._runtime = runtime
         self._attr_unique_id = f"{runtime.node_id}-send-meter-pin"
         self._attr_device_info = {
-            "identifiers": {("smartmeter_pin", runtime.device_id)},
+            "identifiers": {(DOMAIN, runtime.device_id)},
             "name": "IR Smart Meter",
         }
         self._unsub_node = None

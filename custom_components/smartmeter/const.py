@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-DOMAIN = "smartmeter_pin"
+DOMAIN = "smartmeter"
 CONF_DEVICE_ID = "device_id"
 
 

@@ -3,9 +3,14 @@
 IR SML reader with Matter energy and power measurements, PIN input,
 physical-meter diagnostics, and a Home Assistant companion update entity.
 Firmware source is in [`firmware/`](firmware/); the HA custom integration is
-in [`custom_components/smartmeter_pin/`](custom_components/smartmeter_pin/).
+in [`custom_components/smartmeter/`](custom_components/smartmeter/).
 
 ## Install the Home Assistant integration with HACS
+
+[![Open this integration in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Mosher23&repository=IR-Thread-Meter&category=integration)
+
+The button opens this custom repository in your Home Assistant HACS. If it has
+not been added yet, use the manual steps below:
 
 1. In HACS, open the three-dot menu → **Custom repositories**.
 2. Add `https://github.com/Mosher23/IR-Thread-Meter` with category **Integration**.
@@ -14,19 +19,31 @@ in [`custom_components/smartmeter_pin/`](custom_components/smartmeter_pin/).
    latest integration code.
 4. Restart Home Assistant, then go to **Settings → Devices & services → Add
    integration → IR Smart Meter** and select your already-commissioned Matter
-   meter. If the integration was installed manually before, its existing
-   `smartmeter_pin` configuration should remain; do not remove the Matter
-   device or erase its pairing.
+   meter. Do not remove the Matter device or erase its pairing.
 
 HACS installs only the Home Assistant integration, not ESP32 firmware. The
 firmware's **OTA Firmware** entity handles subsequent device updates. For
 manual installation, see the [bootstrap guide](BOOTSTRAP_AND_OTA.md#install-a-subsequent-release-in-home-assistant).
 
+### Existing `smartmeter_pin` installations
+
+Version 2.0 renames the Home Assistant domain as well as the folder. Home
+Assistant cannot automatically transfer an existing `smartmeter_pin` config
+entry to `smartmeter`. Back up Home Assistant first. Remove only the old
+**IR Smart Meter** companion entry under **Settings → Devices & services**;
+leave the **Matter** device and its pairing in place. Download this repository's
+`main` branch in HACS. If `/config/custom_components/smartmeter_pin` remains,
+move that old folder out of `custom_components` as a backup, then restart Home
+Assistant and add **IR Smart Meter** again, choosing the same Matter device.
+Companion entity IDs may change, so check any dashboards or automations that
+reference them. The meter firmware and native Matter Energy/Power entities do
+not change.
+
 The first release (`v1.7`) is a **USB-only migration**. It adds a persistent
 antenna setting, updated partition table, and bootloader rollback. It cannot
 safely be installed over Thread from older v1.6 firmware. Flash it once for
 your internal/external antenna using the [migration guide](BOOTSTRAP_AND_OTA.md).
-Later versions, including this v1.9 candidate (numeric Matter version 10),
+Later versions, including v1.9 (numeric Matter version 10),
 can be installed via the companion **OTA Firmware** entity in Home
 Assistant once their release assets are published. Nothing installs
 automatically; the user must click Install.

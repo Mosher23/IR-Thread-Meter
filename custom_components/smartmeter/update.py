@@ -18,6 +18,7 @@ from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from .const import DOMAIN
 from .ota import REPOSITORY, MAX_JSON, compatibility, parse_manifest, validate_image
 
 SCAN_INTERVAL = timedelta(hours=6)
@@ -81,7 +82,7 @@ class GitHubFirmwareUpdate(UpdateEntity):
         self._install_lock = asyncio.Lock()
         self._attr_unique_id = f"{runtime.node_id}-github-firmware"
         self._attr_device_info = {
-            "identifiers": {("smartmeter_pin", runtime.device_id)},
+            "identifiers": {(DOMAIN, runtime.device_id)},
             "name": "IR Smart Meter",
         }
 

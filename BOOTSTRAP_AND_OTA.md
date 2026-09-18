@@ -43,11 +43,12 @@ If it does not reconnect, diagnose Thread and power before an OTA release.
 ## Install a subsequent release in Home Assistant
 
 Install the integration through [HACS as a custom repository](README.md#install-the-home-assistant-integration-with-hacs),
-or copy the directory `custom_components/smartmeter_pin` from this repository
-to `/config/custom_components/smartmeter_pin` and restart HA Core. If the
-IR Smart Meter integration was previously configured, its existing entry
-stays and gains **OTA Firmware** on the companion device. Otherwise add it
-in Settings → Devices & services and choose your Matter meter.
+or copy the directory `custom_components/smartmeter` from this repository
+to `/config/custom_components/smartmeter` and restart HA Core. If upgrading
+from the old `smartmeter_pin` domain, follow the
+[migration steps](README.md#existing-smartmeter_pin-installations) first.
+Then add **IR Smart Meter** in Settings → Devices & services and choose your
+existing Matter meter; it gains **OTA Firmware** on the companion device.
 
 The companion entity polls this repository's latest *stable* GitHub release
 every six hours. It only offers an update when the release's numeric Matter
