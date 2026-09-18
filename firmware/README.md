@@ -1,5 +1,9 @@
 # Matter-over-Thread Smart-meter Reader
 
+**New to this project?** Start with the [main setup guide](../README.md) for
+USB flashing, Matter commissioning, HACS installation, and OTA updates. This
+page contains the firmware and hardware details.
+
 This is an ESP32-C6 port of Claus Muus' `zigbee-smartmeter-reader`. It keeps the
 byte-oriented SML parser and default OBIS mapping, but replaces the Arduino
 Zigbee endpoint with a native ESP-IDF/ESP-Matter **Electrical Meter** endpoint
@@ -34,7 +38,9 @@ needed. A Matter controller reads the standard Matter energy clusters.
 Active power remains null until the first valid SML power reading; the reader
 does not invent a zero during startup. For Home Assistant commissioning, attach
 the IR head to a transmitting meter first so its native Matter Power entity is
-discovered.
+discovered. If the meter starts reporting power later but the HA Matter Power
+entity remains **Unavailable**, reload the HA Matter integration while a power
+reading is present. Do not erase or re-pair the device as a first step.
 The two identity diagnostics remain empty if the meter does not transmit those
 OBIS entries. Binary octet strings are displayed as uppercase hexadecimal;
 printable values are displayed as text. The reader's own Matter vendor, product,
@@ -42,8 +48,7 @@ and serial information remain distinct from the physical meter's identity.
 
 ## Version baseline
 
-This port is pinned to the latest published stable specifications and matching
-Espressif release stack checked on 15 August 2026:
+This port uses a pinned, reproducible Espressif/Matter build baseline:
 
 - Matter specification/data model: **Matter 1.6**
 - ESP-Matter branch: `release/v1.6`
