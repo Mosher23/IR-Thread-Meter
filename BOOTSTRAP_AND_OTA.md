@@ -42,13 +42,12 @@ If it does not reconnect, diagnose Thread and power before an OTA release.
 
 ## Install a subsequent release in Home Assistant
 
-Install the custom integration by copying the directory
-`custom_components/smartmeter_pin` from this repository to
-`/config/custom_components/smartmeter_pin` and restart HA Core. If the
+Install the integration through [HACS as a custom repository](README.md#install-the-home-assistant-integration-with-hacs),
+or copy the directory `custom_components/smartmeter_pin` from this repository
+to `/config/custom_components/smartmeter_pin` and restart HA Core. If the
 IR Smart Meter integration was previously configured, its existing entry
-stays and gains **Github OTA Firmware** on the companion device. Otherwise add it
-in Settings → Devices & services and choose your Matter meter. HACS custom
-repository installation can also use this layout.
+stays and gains **OTA Firmware** on the companion device. Otherwise add it
+in Settings → Devices & services and choose your Matter meter.
 
 The companion entity polls this repository's latest *stable* GitHub release
 every six hours. It only offers an update when the release's numeric Matter
@@ -59,7 +58,7 @@ node to update. It waits for the version after reboot and the firmware's
 30-second health check before marking success. For failures inspect its
 `ota_status`, `compatibility_issue`, and `last_error` attributes.
 The native Matter **Firmware** entity may also appear: use the companion
-**Github OTA Firmware** entity for on-demand GitHub fetching. Its available
+**OTA Firmware** entity for on-demand GitHub fetching. Its available
 version can differ from the installed version because it reflects whichever
 Matter OTA provider HA knows about; it does not mean the meter downgraded.
 

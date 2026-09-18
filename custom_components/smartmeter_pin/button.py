@@ -29,7 +29,7 @@ class SendMeterPinButton(ButtonEntity):
     """Send the staged PIN and clear it, even when transmission fails."""
 
     _attr_has_entity_name = True
-    _attr_name = "Send Meter PIN"
+    _attr_name = "Send PIN"
     _attr_icon = "mdi:send"
     _attr_entity_category = EntityCategory.CONFIG
 
@@ -75,7 +75,7 @@ class SendMeterPinButton(ButtonEntity):
         async with self._runtime.pin_send_lock:
             pin = self._runtime.take_pin()
             if pin is None:
-                raise HomeAssistantError("Enter a four-digit PIN first, then press Send Meter PIN within two minutes")
+                raise HomeAssistantError("Enter a four-digit PIN first, then press Send PIN within two minutes")
             try:
                 await self._send_key(_CEC_CLEAR)
                 for digit in pin:

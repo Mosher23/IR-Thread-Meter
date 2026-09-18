@@ -86,7 +86,7 @@ class UpdateTests(unittest.IsolatedAsyncioTestCase):
         self.entity.hass = types.SimpleNamespace(async_add_executor_job=executor)
 
     async def test_name_and_icon_distinguish_github_ota(self):
-        self.assertEqual(self.entity._attr_name, "Github OTA Firmware")
+        self.assertEqual(self.entity._attr_name, "OTA Firmware")
         self.assertEqual(self.entity._attr_icon, "mdi:github")
         self.assertIsNone(self.entity.entity_picture)
 

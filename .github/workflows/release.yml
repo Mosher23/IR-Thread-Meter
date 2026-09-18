@@ -2,6 +2,13 @@ name: Build and attach Matter firmware
 on:
   push:
     branches: [main]
+    paths:
+      - .github/workflows/release.yml
+      - firmware/**
+      - patches/**
+      - scripts/build.sh
+      - scripts/package_release.py
+      - tests/test_ota.py
   release:
     types: [published]
   workflow_dispatch:

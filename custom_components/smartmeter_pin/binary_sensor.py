@@ -26,7 +26,7 @@ class ActivePowerObisSeenSensor(CoordinatorEntity, BinarySensorEntity):
     """Show whether a checksum-valid SML frame contained 1-0:16.7.0*255."""
 
     _attr_has_entity_name = True
-    _attr_name = "Active-power OBIS received"
+    _attr_name = "OBIS Received"
     _attr_icon = "mdi:meter-electric-outline"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 

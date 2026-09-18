@@ -19,7 +19,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 
-from .const import CONF_DEVICE_ID, DOMAIN
+from .const import CONF_DEVICE_ID, DOMAIN, normalize_legacy_name
 from .coordinator import SmartMeterCoordinator
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SENSOR, Platform.TEXT, Platform.UPDATE]
@@ -57,9 +57,10 @@ class SmartMeterRuntimeData:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up PIN entry and diagnostics for the selected Matter meter."""
     # Existing config entries retain their original title across integration
-    # updates. Migrate only the old default; preserve user-chosen names.
-    if entry.title == "IR Smart Meter PIN":
-        hass.config_entries.async_update_entry(entry, title="IR Smart Meter")
+    # updates. Migrate only known old titles; preserve other user-chosen names.
+    new_title = normalize_legacy_name(entry.title)
+    if new_title != entry.title:
+        hass.config_entries.async_update_entry(entry, title=new_title)
 
     node = node_from_ha_device_id(hass, entry.data[CONF_DEVICE_ID])
     if node is None:
@@ -94,14 +95,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_refresh()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Likewise, rename only the companion device's old default name. A user
-    # override in the device registry must remain untouched.
+    # Migrate only the exact legacy PIN names, including a user-set device
+    # name. Other names chosen by the user remain untouched.
     registry = dr.async_get(hass)
     device = registry.async_get_device_by_identifier(
         (DOMAIN, entry.data[CONF_DEVICE_ID]), entry.entry_id
     )
-    if device is not None and device.name == "IR Smart Meter PIN" and device.name_by_user is None:
-        registry.async_update_device(device.id, name="IR Smart Meter")
+    if device is not None:
+        new_user_name = normalize_legacy_name(device.name_by_user)
+        if new_user_name != device.name_by_user:
+            registry.async_update_device(device.id, name_by_user=new_user_name)
+        elif device.name_by_user is None:
+            new_name = normalize_legacy_name(device.name)
+            if new_name != device.name:
+                registry.async_update_device(device.id, name=new_name)
     return True
 
 

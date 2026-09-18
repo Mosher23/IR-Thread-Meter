@@ -101,8 +101,9 @@ def load(name):
 
 
 with patch.dict(sys.modules, stubs):
-    load("const")
+    const = load("const")
     coordinator = load("coordinator")
+    binary_sensor = load("binary_sensor")
     sensor = load("sensor")
     text = load("text")
     button = load("button")
@@ -133,6 +134,11 @@ class Runtime:
 
 
 class CompanionTests(unittest.IsolatedAsyncioTestCase):
+    def test_old_entry_and_device_names_drop_pin(self):
+        self.assertEqual(const.normalize_legacy_name("IR Smart Meter PIN"), "IR Smart Meter")
+        self.assertEqual(const.normalize_legacy_name("Smart Meter PIN"), "Smart Meter")
+        self.assertEqual(const.normalize_legacy_name("My meter"), "My meter")
+
     def setUp(self):
         self.node = types.SimpleNamespace(available=True)
         self.client = types.SimpleNamespace(
@@ -160,7 +166,12 @@ class CompanionTests(unittest.IsolatedAsyncioTestCase):
         registry = types.SimpleNamespace(async_get_entity_id=lambda *_: None)
         with patch.object(sensor.er, "async_get", return_value=registry):
             await sensor.async_setup_entry(None, entry, entities.extend)
-        self.assertEqual([entity._attr_name for entity in entities], ["Meter ID", "Meter manufacturer"])
+        self.assertEqual([entity._attr_name for entity in entities], ["Meter ID", "Manufacturer"])
+
+    def test_default_entity_names_match_home_assistant(self):
+        self.assertEqual(text.MeterPinTextEntity._attr_name, "Meter PIN")
+        self.assertEqual(button.SendMeterPinButton._attr_name, "Send PIN")
+        self.assertEqual(binary_sensor.ActivePowerObisSeenSensor._attr_name, "OBIS Received")
 
     async def test_removes_only_its_legacy_power_entity(self):
         removed = []

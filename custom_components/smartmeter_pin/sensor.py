@@ -40,7 +40,7 @@ async def async_setup_entry(
             MeterIdentitySensor(
                 runtime,
                 METER_MANUFACTURER_ATTRIBUTE_ID,
-                "Meter manufacturer",
+                "Manufacturer",
                 "factory",
             ),
         ]

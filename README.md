@@ -5,12 +5,29 @@ physical-meter diagnostics, and a Home Assistant companion update entity.
 Firmware source is in [`firmware/`](firmware/); the HA custom integration is
 in [`custom_components/smartmeter_pin/`](custom_components/smartmeter_pin/).
 
+## Install the Home Assistant integration with HACS
+
+1. In HACS, open the three-dot menu → **Custom repositories**.
+2. Add `https://github.com/Mosher23/IR-Thread-Meter` with category **Integration**.
+3. Open **IR Smart Meter** in HACS and download it. Select the `main` branch
+   when asked for a version: the firmware release tags are separate from the
+   latest integration code.
+4. Restart Home Assistant, then go to **Settings → Devices & services → Add
+   integration → IR Smart Meter** and select your already-commissioned Matter
+   meter. If the integration was installed manually before, its existing
+   `smartmeter_pin` configuration should remain; do not remove the Matter
+   device or erase its pairing.
+
+HACS installs only the Home Assistant integration, not ESP32 firmware. The
+firmware's **OTA Firmware** entity handles subsequent device updates. For
+manual installation, see the [bootstrap guide](BOOTSTRAP_AND_OTA.md#install-a-subsequent-release-in-home-assistant).
+
 The first release (`v1.7`) is a **USB-only migration**. It adds a persistent
 antenna setting, updated partition table, and bootloader rollback. It cannot
 safely be installed over Thread from older v1.6 firmware. Flash it once for
 your internal/external antenna using the [migration guide](BOOTSTRAP_AND_OTA.md).
 Later versions, including this v1.9 candidate (numeric Matter version 10),
-can be installed via the companion **Github OTA Firmware** entity in Home
+can be installed via the companion **OTA Firmware** entity in Home
 Assistant once their release assets are published. Nothing installs
 automatically; the user must click Install.
 
@@ -19,7 +36,7 @@ seconds. Power is exposed only by Home Assistant's native Matter integration;
 it remains unknown until the meter sends a valid SML power reading. When adding
 the Matter device to Home Assistant for the first time, keep the IR head on the
 meter so Power is non-null during discovery. To enter a PIN, set the **Meter PIN** field,
-then press **Send Meter PIN** within two minutes. The actual PIN stays only in
+then press **Send PIN** within two minutes. The actual PIN stays only in
 memory; HA state/history receive a masked placeholder. The button clears the
 staged PIN whether sending succeeds or fails.
 
