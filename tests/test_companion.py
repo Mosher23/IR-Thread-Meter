@@ -151,6 +151,7 @@ class CompanionTests(unittest.IsolatedAsyncioTestCase):
             read_attribute=AsyncMock(),
             send_device_command=AsyncMock(),
         )
+        self.client.send_device_command.return_value = None
         self.coordinator = coordinator.SmartMeterCoordinator(None, self.client, 5, 1)
         self.runtime = Runtime(self.client, self.coordinator)
 
@@ -220,6 +221,18 @@ class CompanionTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(HAError, "Enter a four-digit PIN"):
             await send.async_press()
         self.client.send_device_command.assert_not_awaited()
+
+    async def test_button_reports_firmware_rejection(self):
+        field = text.MeterPinTextEntity(self.runtime)
+        send = button.SendMeterPinButton(self.runtime)
+        await field.async_set_value("1234")
+        self.client.send_device_command.side_effect = [
+            {"status": 0}, {"status": 0}, {"status": 0},
+            {"status": 0}, {"status": 0}, {"status": 2}, {"status": 0},
+        ]
+        with self.assertRaisesRegex(HAError, "transmitter is busy"):
+            await send.async_press()
+        self.assertEqual(self.client.send_device_command.await_count, 7)
 
     async def test_offline_meter_does_not_expose_stale_values(self):
         self.node.available = False

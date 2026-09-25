@@ -87,12 +87,30 @@ class SendMeterPinButton(ButtonEntity):
                     await self._send_key(_CEC_CLEAR)
                 except Exception:
                     pass
+                if isinstance(err, HomeAssistantError):
+                    raise HomeAssistantError(str(err)) from err
                 raise HomeAssistantError("Could not send the meter PIN") from err
 
     async def _send_key(self, key_code: int) -> None:
         command = Clusters.KeypadInput.Commands.SendKey(keyCode=key_code)
-        await self._runtime.matter_client.send_device_command(
+        response = await self._runtime.matter_client.send_device_command(
             node_id=self._runtime.node_id,
             endpoint_id=self._runtime.endpoint_id,
             command=command,
         )
+        status = (
+            response.get("status")
+            if isinstance(response, dict)
+            else getattr(response, "status", None)
+        )
+        if status is not None:
+            status_code = int(status)
+            if status_code == 0:
+                return
+            if status_code == 2:
+                raise HomeAssistantError(
+                    "The meter PIN transmitter is busy or its input is incomplete"
+                )
+            raise HomeAssistantError(
+                f"The meter rejected a PIN command (status {status_code})"
+            )

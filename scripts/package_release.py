@@ -17,7 +17,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("meter_ota", ROOT / "custom_components/smartmeter_pin/ota.py")
+spec = importlib.util.spec_from_file_location("meter_ota", ROOT / "custom_components/smartmeter/ota.py")
 ota = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = ota
 spec.loader.exec_module(ota)

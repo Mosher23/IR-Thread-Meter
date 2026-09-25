@@ -481,7 +481,19 @@ void smart_meter_task(void *)
     uint8_t buffer[256];
 
     while (true) {
+        // A queued PIN owns the UART until its optical sequence is complete.
+        // The SML task otherwise immediately reacquires this mutex after each
+        // read and can starve the transmitter indefinitely.
+        if (g_pin_busy.load()) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+            continue;
+        }
         xSemaphoreTake(g_uart_mutex, portMAX_DELAY);
+        if (g_pin_busy.load()) {
+            xSemaphoreGive(g_uart_mutex);
+            vTaskDelay(pdMS_TO_TICKS(10));
+            continue;
+        }
         const int length = uart_read_bytes(static_cast<uart_port_t>(CONFIG_SMARTMETER_UART_NUM), buffer,
                                            sizeof(buffer), pdMS_TO_TICKS(250));
         xSemaphoreGive(g_uart_mutex);
@@ -604,6 +616,7 @@ void pin_transmitter_task(void *)
 
         ESP_LOGI(TAG, "Starting optical meter PIN entry");
         xSemaphoreTake(g_uart_mutex, portMAX_DELAY);
+        ESP_LOGI(TAG, "Optical PIN transmitter acquired UART");
         uart_flush_input(static_cast<uart_port_t>(CONFIG_SMARTMETER_UART_NUM));
         const esp_err_t error = transmit_pin(request);
         uart_flush_input(static_cast<uart_port_t>(CONFIG_SMARTMETER_UART_NUM));
