@@ -14,7 +14,7 @@ over the ESP32-C6's built-in Thread radio.
 - Manufacturer: `SimpleIdeas`
 - Product and commissionable name: `IR Power Meter`
 - Development VID/PID: `0xFFF1` / `0x8000`
-- Software version: `12` (`1.11`; `1.7` was the USB-only OTA bootstrap)
+- Software version: `13` (`1.12`; `1.7` was the USB-only OTA bootstrap)
 - Hardware version: `1` (`1.0`)
 - Development serial number: `00000001`
 - ESP-IDF project name: `IR_Meter_Thread_Matter`
@@ -139,13 +139,17 @@ the radio. Both variants drive GPIO3 low before configuring GPIO14. The
 internal build drives GPIO14 low for ceramic; the external build drives it high
 for U.FL/IPEX, following the
 [official Seeed RF-switch sequence](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/#hardware-overview).
-From firmware 1.11 onward, the existing Matter meter endpoint also exposes an
-On/Off antenna selector: Off = internal, On = external. A Matter controller
+From firmware 1.12 onward, the existing Matter meter endpoint also exposes a
+working two-way On/Off antenna selector: Off = internal, On = external. Firmware
+1.11 omitted registration of the Matter On command, causing Unsupported
+Command (129) when selecting external. A Matter controller
 can change the antenna without reflashing; the new selection is saved in
 `board_cfg` and the GPIO14 RF switch changes immediately. On an uninitialized
 board, the internal USB build remains the default. Existing external-antenna
 boards keep their saved selection through OTA. Connect the external antenna
-before switching to it, since a lost Thread connection prevents remote recovery.
+before switching to it, since a lost Thread connection prevents a remote
+reverse command. On firmware 1.12+, three short BOOT taps toggle the saved
+antenna and restart the board without erasing Matter credentials.
 
 To change pins, baud rate, or report intervals:
 
@@ -197,7 +201,7 @@ Thread failures.
 - The Matter On/Off antenna switch persists its choice. The USB console command
   `antenna internal` (or `antenna external`) saves the choice and restarts;
   use `antenna internal` to recover from a wrong remote selection.
-- Three short taps of BOOT while firmware is running also restore the internal
+- Three short taps of BOOT while firmware is running toggle the saved
   antenna and restart, without erasing Matter credentials. The existing
   five-second BOOT hold still performs a Matter factory reset.
 - Reports are emitted only after the complete SML frame passes its CRC check.

@@ -272,12 +272,18 @@ void factory_reset_button_task(void *)
                 }
                 last_short_release = now;
                 if (++short_presses == 3) {
-                    ESP_LOGW(TAG, "Three BOOT taps: restoring internal antenna");
-                    const esp_err_t error = board_config_set_antenna(false);
+                    // A fixed "restore internal" shortcut cannot recover a
+                    // device that lost Thread after switching *to* internal.
+                    // Toggle instead, so another three taps can undo either
+                    // antenna selection without erasing Matter credentials.
+                    const bool next_external = !g_external_antenna;
+                    ESP_LOGW(TAG, "Three BOOT taps: selecting %s antenna",
+                             next_external ? "external" : "internal");
+                    const esp_err_t error = board_config_set_antenna(next_external);
                     if (error == ESP_OK) {
                         esp_restart();
                     }
-                    ESP_LOGE(TAG, "Could not restore internal antenna: %s",
+                    ESP_LOGE(TAG, "Could not change antenna: %s",
                              esp_err_to_name(error));
                     short_presses = 0;
                 }
@@ -371,8 +377,13 @@ extern "C" void app_main()
     // the meter's endpoint ID stay unchanged across an OTA update.
     cluster::on_off::config_t antenna_config = {};
     antenna_config.on_off = g_external_antenna;
-    if (cluster::on_off::create(meter_endpoint, &antenna_config,
-                                CLUSTER_FLAG_SERVER) == nullptr) {
+    cluster_t *antenna_cluster = cluster::on_off::create(
+        meter_endpoint, &antenna_config, CLUSTER_FLAG_SERVER);
+    // The pinned ESP-Matter legacy cluster helper registers Off only. HA
+    // sends On (command 0x01) when selecting the external antenna; without
+    // explicitly advertising it, Matter rejects the request with 0x81.
+    if (antenna_cluster == nullptr ||
+        cluster::on_off::command::create_on(antenna_cluster) == nullptr) {
         ESP_LOGE(TAG, "Failed to create Matter antenna switch");
         abort();
     }

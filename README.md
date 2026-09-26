@@ -66,22 +66,33 @@ The companion provides **OBIS Received**, **Manufacturer**, **Meter ID**, and
 pulse**, and **Long light pulse** controls; and **OTA Firmware**.
 It intentionally does **not** create another Power sensor.
 
-### Select the antenna (firmware 1.11+)
+### Select the antenna (firmware 1.12+)
 
 The Matter device exposes an On/Off switch on the meter endpoint. **Off means
 the built-in ceramic antenna; On means the external U.FL antenna.** Home
-Assistant may initially label this generic Matter switch like an outlet; rename
-it **External antenna** so it is not mistaken for a switch that turns the meter
-on or off. The companion's **Active antenna** diagnostic displays the actual
+Assistant currently names this generic On/Off entity after the whole device.
+Rename its **display name** to **External Antenna** in the HA entity settings so
+it is not mistaken for a switch that turns the meter on or off. This name is
+controlled by HA's Matter integration and cannot be forced by this firmware
+without also renaming the entire meter device. The companion's **Active antenna** diagnostic displays the actual
 selection. If the switch does not appear after an OTA upgrade, re-interview the
 node in Matter Server or reload Home Assistant's Matter integration; do not
 remove the existing pairing.
 
+Firmware 1.11 exposed the switch but accidentally registered only the Matter
+**Off** command. If Home Assistant reports **Unsupported command (129)** when
+you turn it back on, install firmware 1.12 or later. The device can remain
+reachable over Thread while returning this error; it is not a range problem.
+
 The selection takes effect immediately and is saved across reboots, OTA, and
 Matter factory resets. Connect the external antenna *before* switching to it.
-If Thread becomes unreachable, tap the XIAO's **BOOT button three times**
-while it is running to restore the internal antenna and restart. Alternatively,
-connect USB and enter `antenna internal` at the device's serial console.
+If the newly selected antenna cannot reach the Thread network, HA cannot send
+the reverse command. On firmware 1.12+, tap the XIAO's **BOOT button three
+times** while it is running to toggle back to the previous antenna and restart.
+On firmware 1.11, three BOOT taps only select the internal antenna; if you lost
+the connection *after selecting internal*, use the USB console command
+`antenna external` or temporarily bring a Thread router within range and turn
+the Matter switch back on. These recovery actions preserve Matter credentials.
 
 ### Enter a meter PIN
 
@@ -143,6 +154,6 @@ IDs may change, so review dashboards and automations that reference them.
 - [Licensing and attribution](firmware/LICENSES.md)
 
 The [latest firmware release](https://github.com/Mosher23/IR-Thread-Meter/releases/latest)
-is currently v1.11 (Matter numeric version 12). Release checksums guard
+is currently v1.12 (Matter numeric version 13). Release checksums guard
 against accidental corruption; this test-device setup does not provide
 production signing, secure boot, or production Matter attestation.
