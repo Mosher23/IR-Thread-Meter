@@ -1,4 +1,4 @@
-"""Explicit, one-shot Send PIN action for the Matter IR head."""
+"""Explicit PIN and optical navigation actions for the Matter IR head."""
 
 from __future__ import annotations
 
@@ -18,25 +18,30 @@ from .const import DOMAIN
 _CEC_DIGIT_ZERO = 0x20
 _CEC_SELECT = 0x00
 _CEC_CLEAR = 0x2C
+_CEC_UP = 0x01
+_CEC_DOWN = 0x02
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    async_add_entities([SendMeterPinButton(entry.runtime_data)])
+    async_add_entities(
+        [
+            SendMeterPinButton(entry.runtime_data),
+            ManualMeterPulseButton(entry.runtime_data, long_pulse=False),
+            ManualMeterPulseButton(entry.runtime_data, long_pulse=True),
+        ]
+    )
 
 
-class SendMeterPinButton(ButtonEntity):
-    """Send the staged PIN and clear it, even when transmission fails."""
+class MeterCommandButton(ButtonEntity):
+    """Common Matter connectivity and command handling for optical actions."""
 
     _attr_has_entity_name = True
-    _attr_name = "Send PIN"
-    _attr_icon = "mdi:send"
     _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, runtime: SmartMeterRuntimeData) -> None:
         self._runtime = runtime
-        self._attr_unique_id = f"{runtime.node_id}-send-meter-pin"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, runtime.device_id)},
             "name": "IR Smart Meter",
@@ -68,6 +73,41 @@ class SendMeterPinButton(ButtonEntity):
     def _handle_node_update(self, event: EventType | None = None, data=None) -> None:
         self.async_write_ha_state()
 
+    async def _send_key(self, key_code: int) -> None:
+        command = Clusters.KeypadInput.Commands.SendKey(keyCode=key_code)
+        response = await self._runtime.matter_client.send_device_command(
+            node_id=self._runtime.node_id,
+            endpoint_id=self._runtime.endpoint_id,
+            command=command,
+        )
+        status = (
+            response.get("status")
+            if isinstance(response, dict)
+            else getattr(response, "status", None)
+        )
+        if status is not None:
+            status_code = int(status)
+            if status_code == 0:
+                return
+            if status_code == 2:
+                raise HomeAssistantError(
+                    "The meter optical transmitter is busy or its input is incomplete"
+                )
+            raise HomeAssistantError(
+                f"The meter rejected an optical command (status {status_code})"
+            )
+
+
+class SendMeterPinButton(MeterCommandButton):
+    """Send the staged PIN and clear it, even when transmission fails."""
+
+    _attr_name = "Send PIN"
+    _attr_icon = "mdi:send"
+
+    def __init__(self, runtime: SmartMeterRuntimeData) -> None:
+        super().__init__(runtime)
+        self._attr_unique_id = f"{runtime.node_id}-send-meter-pin"
+
     async def async_press(self) -> None:
         if not self.available:
             raise HomeAssistantError("The meter is offline")
@@ -91,26 +131,38 @@ class SendMeterPinButton(ButtonEntity):
                     raise HomeAssistantError(str(err)) from err
                 raise HomeAssistantError("Could not send the meter PIN") from err
 
-    async def _send_key(self, key_code: int) -> None:
-        command = Clusters.KeypadInput.Commands.SendKey(keyCode=key_code)
-        response = await self._runtime.matter_client.send_device_command(
-            node_id=self._runtime.node_id,
-            endpoint_id=self._runtime.endpoint_id,
-            command=command,
+
+class ManualMeterPulseButton(MeterCommandButton):
+    """Emit one optical flash to navigate the physical meter display."""
+
+    _attr_icon = "mdi:flash"
+
+    def __init__(self, runtime: SmartMeterRuntimeData, *, long_pulse: bool) -> None:
+        super().__init__(runtime)
+        self._long_pulse = long_pulse
+        self._attr_name = "Long light pulse" if long_pulse else "Short light pulse"
+        self._attr_unique_id = (
+            f"{runtime.node_id}-{'long' if long_pulse else 'short'}-light-pulse"
         )
-        status = (
-            response.get("status")
-            if isinstance(response, dict)
-            else getattr(response, "status", None)
-        )
-        if status is not None:
-            status_code = int(status)
-            if status_code == 0:
-                return
-            if status_code == 2:
-                raise HomeAssistantError(
-                    "The meter PIN transmitter is busy or its input is incomplete"
-                )
+
+    @property
+    def available(self) -> bool:
+        if not super().available:
+            return False
+        version = (self._runtime.coordinator.data or {}).get("0/40/9")
+        return isinstance(version, int) and version >= 12
+
+    async def async_press(self) -> None:
+        if not self.available:
             raise HomeAssistantError(
-                f"The meter rejected a PIN command (status {status_code})"
+                "Manual light pulses require an online meter running firmware 1.11 or newer"
             )
+        if self._runtime.pin_send_lock.locked():
+            raise HomeAssistantError("The meter optical transmitter is busy")
+        async with self._runtime.pin_send_lock:
+            try:
+                await self._send_key(_CEC_DOWN if self._long_pulse else _CEC_UP)
+            except HomeAssistantError:
+                raise
+            except Exception as err:
+                raise HomeAssistantError("Could not send the optical pulse") from err

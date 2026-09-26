@@ -92,14 +92,21 @@ struct State {
 
 State g_state;
 
-struct PinRequest {
+enum class OpticalRequestType : uint8_t {
+    Pin,
+    ShortPulse,
+    LongPulse,
+};
+
+struct OpticalRequest {
+    OpticalRequestType type;
     char digits[4];
 };
 
-QueueHandle_t g_pin_queue = nullptr;
+QueueHandle_t g_optical_queue = nullptr;
 SemaphoreHandle_t g_uart_mutex = nullptr;
 TaskHandle_t g_led_task_handle = nullptr;
-std::atomic_bool g_pin_busy{false};
+std::atomic_bool g_optical_busy{false};
 
 constexpr ledc_mode_t kLedSpeedMode = LEDC_LOW_SPEED_MODE;
 constexpr ledc_timer_t kLedTimer = LEDC_TIMER_0;
@@ -484,12 +491,12 @@ void smart_meter_task(void *)
         // A queued PIN owns the UART until its optical sequence is complete.
         // The SML task otherwise immediately reacquires this mutex after each
         // read and can starve the transmitter indefinitely.
-        if (g_pin_busy.load()) {
+        if (g_optical_busy.load()) {
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
         xSemaphoreTake(g_uart_mutex, portMAX_DELAY);
-        if (g_pin_busy.load()) {
+        if (g_optical_busy.load()) {
             xSemaphoreGive(g_uart_mutex);
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
@@ -585,7 +592,7 @@ esp_err_t send_short_flash()
     return ESP_OK;
 }
 
-esp_err_t transmit_pin(const PinRequest &request)
+esp_err_t transmit_pin(const OpticalRequest &request)
 {
     // Netze Duisburg specifies two short optical activations before the meter
     // presents the first zero of its PIN entry display.
@@ -606,28 +613,32 @@ esp_err_t transmit_pin(const PinRequest &request)
     return ESP_OK;
 }
 
-void pin_transmitter_task(void *)
+void optical_transmitter_task(void *)
 {
-    PinRequest request = {};
+    OpticalRequest request = {};
     while (true) {
-        if (xQueueReceive(g_pin_queue, &request, portMAX_DELAY) != pdTRUE) {
+        if (xQueueReceive(g_optical_queue, &request, portMAX_DELAY) != pdTRUE) {
             continue;
         }
 
-        ESP_LOGI(TAG, "Starting optical meter PIN entry");
+        const bool pin = request.type == OpticalRequestType::Pin;
+        ESP_LOGI(TAG, "Starting optical %s", pin ? "meter PIN entry" :
+                 request.type == OpticalRequestType::LongPulse ? "long pulse" : "short pulse");
         xSemaphoreTake(g_uart_mutex, portMAX_DELAY);
-        ESP_LOGI(TAG, "Optical PIN transmitter acquired UART");
+        ESP_LOGI(TAG, "Optical transmitter acquired UART");
         uart_flush_input(static_cast<uart_port_t>(CONFIG_SMARTMETER_UART_NUM));
-        const esp_err_t error = transmit_pin(request);
+        const esp_err_t error = pin ? transmit_pin(request) : transmit_ir_flash(
+            request.type == OpticalRequestType::LongPulse ?
+                CONFIG_SMARTMETER_LONG_FLASH_MS : CONFIG_SMARTMETER_PIN_SHORT_FLASH_MS);
         uart_flush_input(static_cast<uart_port_t>(CONFIG_SMARTMETER_UART_NUM));
         xSemaphoreGive(g_uart_mutex);
 
         memset(&request, 0, sizeof(request));
-        g_pin_busy.store(false);
+        g_optical_busy.store(false);
         if (error == ESP_OK) {
-            ESP_LOGI(TAG, "Optical meter PIN entry complete");
+            ESP_LOGI(TAG, "Optical transmission complete");
         } else {
-            ESP_LOGE(TAG, "Optical meter PIN entry failed: %s", esp_err_to_name(error));
+            ESP_LOGE(TAG, "Optical transmission failed: %s", esp_err_to_name(error));
         }
     }
 }
@@ -682,13 +693,13 @@ esp_err_t smart_meter_start(uint16_t matter_endpoint_id, SmartMeterPowerDelegate
     g_uart_mutex = xSemaphoreCreateMutex();
     ESP_RETURN_ON_FALSE(g_uart_mutex != nullptr, ESP_ERR_NO_MEM, TAG,
                         "Failed to create UART mutex");
-    g_pin_queue = xQueueCreate(1, sizeof(PinRequest));
-    ESP_RETURN_ON_FALSE(g_pin_queue != nullptr, ESP_ERR_NO_MEM, TAG,
-                        "Failed to create PIN queue");
+    g_optical_queue = xQueueCreate(1, sizeof(OpticalRequest));
+    ESP_RETURN_ON_FALSE(g_optical_queue != nullptr, ESP_ERR_NO_MEM, TAG,
+                        "Failed to create optical queue");
 
     BaseType_t created = xTaskCreate(smart_meter_task, "sml_reader", 6144, nullptr, 5, nullptr);
     ESP_RETURN_ON_FALSE(created == pdPASS, ESP_ERR_NO_MEM, TAG, "Failed to create SML task");
-    created = xTaskCreate(pin_transmitter_task, "pin_transmitter", 4096, nullptr, 5, nullptr);
+    created = xTaskCreate(optical_transmitter_task, "optical_tx", 4096, nullptr, 5, nullptr);
     ESP_RETURN_ON_FALSE(created == pdPASS, ESP_ERR_NO_MEM, TAG,
                         "Failed to create PIN transmitter task");
     return ESP_OK;
@@ -708,22 +719,40 @@ esp_err_t smart_meter_submit_pin(const char *pin)
     }
     ESP_RETURN_ON_FALSE(any_nonzero, ESP_ERR_INVALID_ARG, TAG,
                         "Meter PIN 0000 is not valid");
-    ESP_RETURN_ON_FALSE(g_pin_queue != nullptr, ESP_ERR_INVALID_STATE, TAG,
-                        "PIN transmitter is not initialized");
+    ESP_RETURN_ON_FALSE(g_optical_queue != nullptr, ESP_ERR_INVALID_STATE, TAG,
+                        "Optical transmitter is not initialized");
 
     bool expected = false;
-    ESP_RETURN_ON_FALSE(g_pin_busy.compare_exchange_strong(expected, true),
-                        ESP_ERR_INVALID_STATE, TAG, "PIN transmitter is busy");
+    ESP_RETURN_ON_FALSE(g_optical_busy.compare_exchange_strong(expected, true),
+                        ESP_ERR_INVALID_STATE, TAG, "Optical transmitter is busy");
 
-    PinRequest request = {};
+    OpticalRequest request = {};
+    request.type = OpticalRequestType::Pin;
     memcpy(request.digits, pin, sizeof(request.digits));
-    if (xQueueSend(g_pin_queue, &request, 0) != pdTRUE) {
-        g_pin_busy.store(false);
+    if (xQueueSend(g_optical_queue, &request, 0) != pdTRUE) {
+        g_optical_busy.store(false);
         memset(&request, 0, sizeof(request));
         return ESP_ERR_TIMEOUT;
     }
 
     memset(&request, 0, sizeof(request));
+    return ESP_OK;
+}
+
+esp_err_t smart_meter_submit_pulse(bool long_pulse)
+{
+    ESP_RETURN_ON_FALSE(g_optical_queue != nullptr, ESP_ERR_INVALID_STATE, TAG,
+                        "Optical transmitter is not initialized");
+    bool expected = false;
+    ESP_RETURN_ON_FALSE(g_optical_busy.compare_exchange_strong(expected, true),
+                        ESP_ERR_INVALID_STATE, TAG, "Optical transmitter is busy");
+
+    OpticalRequest request = {};
+    request.type = long_pulse ? OpticalRequestType::LongPulse : OpticalRequestType::ShortPulse;
+    if (xQueueSend(g_optical_queue, &request, 0) != pdTRUE) {
+        g_optical_busy.store(false);
+        return ESP_ERR_TIMEOUT;
+    }
     return ESP_OK;
 }
 

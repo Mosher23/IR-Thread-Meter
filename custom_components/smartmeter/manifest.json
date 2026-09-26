@@ -1,7 +1,7 @@
 {
   "domain": "smartmeter",
   "name": "IR Smart Meter",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "codeowners": ["@Mosher23"],
   "config_flow": true,
   "dependencies": ["matter"],

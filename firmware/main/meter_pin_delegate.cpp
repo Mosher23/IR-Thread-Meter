@@ -86,6 +86,22 @@ void MeterPinDelegate::HandleSendKey(
         return;
     }
 
+    if (key_code == KeypadInput::CECKeyCodeEnum::kUp ||
+        key_code == KeypadInput::CECKeyCodeEnum::kDown) {
+        if (m_digit_count != 0) {
+            send_response(helper, KeypadInput::StatusEnum::kInvalidKeyInCurrentState);
+            return;
+        }
+        const bool long_pulse = key_code == KeypadInput::CECKeyCodeEnum::kDown;
+        const esp_err_t error = smart_meter_submit_pulse(long_pulse);
+        if (error != ESP_OK) {
+            ESP_LOGW(TAG, "Optical pulse rejected: %s", esp_err_to_name(error));
+        }
+        send_response(helper, error == ESP_OK ? KeypadInput::StatusEnum::kSuccess :
+                                       KeypadInput::StatusEnum::kInvalidKeyInCurrentState);
+        return;
+    }
+
     if (key_code == KeypadInput::CECKeyCodeEnum::kEnter ||
         key_code == KeypadInput::CECKeyCodeEnum::kSelect) {
         if (m_digit_count != 4) {
@@ -124,5 +140,6 @@ void MeterPinDelegate::HandleSendKey(
 
 uint32_t MeterPinDelegate::GetFeatureMap(chip::EndpointId)
 {
-    return static_cast<uint32_t>(KeypadInput::Feature::kNumberKeys);
+    return static_cast<uint32_t>(KeypadInput::Feature::kNumberKeys) |
+           static_cast<uint32_t>(KeypadInput::Feature::kNavigationKeyCodes);
 }

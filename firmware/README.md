@@ -208,7 +208,7 @@ Thread failures.
 ## Optical PIN entry
 
 The Electrical Meter endpoint also exposes a Matter **Keypad Input** server
-with the Number Keys feature. A controller sends four numeric `SendKey`
+with Number Keys and Navigation Key Codes. A controller sends four numeric `SendKey`
 commands followed by `Enter` (or `Select`). `Clear` or `Exit` cancels a partial
 entry. The PIN is kept only in RAM, is never written to NVS, and is not printed
 in firmware logs.
@@ -220,6 +220,16 @@ dark time between digits. A zero digit is represented by no flash during that
 digit interval. SML reception resumes after the meter has checked the fourth
 digit.
 
+For manual menu navigation, `SendKey(Up)` requests one short optical pulse
+(500 ms by default), while `SendKey(Down)` requests one long pulse (5 seconds
+by default). Home Assistant companion 2.1.1 adds buttons for both actions.
+Both commands use the same UART queue as PIN entry and reject overlapping
+transmissions. The Matter response acknowledges queue acceptance; it cannot
+confirm that the physical meter sensed the light. An EMH long optical press is
+more than 4.5 seconds and may toggle settings or clear historical values,
+depending on the screen. Avoid long presses on a clear-history menu unless
+that is intended.
+
 For first-time alignment and timing calibration, use the USB console while
 watching the meter display:
 
@@ -229,7 +239,7 @@ meter-pin 1234
 
 The console echoes typed input, so use it only for local testing. Normal use
 should send the Keypad Input commands over the encrypted Matter session. The
-short-flash, inter-flash, wake-settle, digit-wait, and TX inversion settings are
+short-flash, long-flash, inter-flash, wake-settle, digit-wait, and TX inversion settings are
 available under **Smart-meter reader** in `idf.py menuconfig`.
 
 On the EMH eHZB, the optical control element and the INFO/SML data interface

@@ -36,6 +36,14 @@ config SMARTMETER_PIN_SHORT_FLASH_MS
     range 100 4000
     default 500
 
+config SMARTMETER_LONG_FLASH_MS
+    int "Manual optical long-flash duration (ms)"
+    range 4600 10000
+    default 5000
+    help
+        EMH meters distinguish a long optical press at more than 4.5 seconds.
+        A long press can change settings or clear history on some menu screens.
+
 config SMARTMETER_PIN_FLASH_GAP_MS
     int "Gap between optical flashes (ms)"
     range 100 4000

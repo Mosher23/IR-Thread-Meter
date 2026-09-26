@@ -209,6 +209,45 @@ class CompanionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(button.SendMeterPinButton._attr_name, "Send PIN")
         self.assertEqual(binary_sensor.ActivePowerObisSeenSensor._attr_name, "OBIS Received")
 
+    async def test_manual_pulse_buttons_require_firmware_1_11(self):
+        short = button.ManualMeterPulseButton(self.runtime, long_pulse=False)
+        long = button.ManualMeterPulseButton(self.runtime, long_pulse=True)
+        self.assertEqual(short._attr_name, "Short light pulse")
+        self.assertEqual(long._attr_name, "Long light pulse")
+        self.assertFalse(short.available)
+        with self.assertRaisesRegex(HAError, "firmware 1.11"):
+            await short.async_press()
+        self.coordinator.data = {"0/40/9": 11}
+        self.assertFalse(short.available)
+        self.coordinator.data = {"0/40/9": 12}
+        self.assertTrue(short.available)
+        self.assertTrue(long.available)
+
+    async def test_manual_pulses_use_standard_navigation_keys(self):
+        self.coordinator.data = {"0/40/9": 12}
+        short = button.ManualMeterPulseButton(self.runtime, long_pulse=False)
+        long = button.ManualMeterPulseButton(self.runtime, long_pulse=True)
+        await short.async_press()
+        await long.async_press()
+        codes = [call.kwargs["command"].keyCode for call in self.client.send_device_command.await_args_list]
+        self.assertEqual(codes, [0x01, 0x02])
+
+    async def test_button_platform_exposes_pin_and_both_pulses(self):
+        entities = []
+        entry = types.SimpleNamespace(runtime_data=self.runtime)
+        await button.async_setup_entry(None, entry, entities.extend)
+        self.assertEqual(
+            [entity._attr_name for entity in entities],
+            ["Send PIN", "Short light pulse", "Long light pulse"],
+        )
+
+    async def test_manual_pulse_rejection_is_reported(self):
+        self.coordinator.data = {"0/40/9": 12}
+        self.client.send_device_command.return_value = {"status": 2}
+        short = button.ManualMeterPulseButton(self.runtime, long_pulse=False)
+        with self.assertRaisesRegex(HAError, "transmitter is busy"):
+            await short.async_press()
+
     def test_entity_devices_use_new_domain(self):
         entities = [
             sensor.MeterIdentitySensor(self.runtime, const.METER_ID_ATTRIBUTE_ID, "Meter ID", "identifier"),
@@ -216,6 +255,8 @@ class CompanionTests(unittest.IsolatedAsyncioTestCase):
             binary_sensor.ActivePowerObisSeenSensor(self.runtime),
             text.MeterPinTextEntity(self.runtime),
             button.SendMeterPinButton(self.runtime),
+            button.ManualMeterPulseButton(self.runtime, long_pulse=False),
+            button.ManualMeterPulseButton(self.runtime, long_pulse=True),
         ]
         for entity in entities:
             self.assertEqual(entity._attr_device_info["identifiers"], {("smartmeter", "meter-device")})

@@ -62,8 +62,8 @@ installation, copy `custom_components/smartmeter` to
 `/config/custom_components/smartmeter`, restart HA, and add the integration.
 
 The companion provides **OBIS Received**, **Manufacturer**, **Meter ID**, and
-**Active antenna** diagnostics; **Meter PIN** and **Send PIN** controls; and
-**OTA Firmware**.
+**Active antenna** diagnostics; **Meter PIN**, **Send PIN**, **Short light
+pulse**, and **Long light pulse** controls; and **OTA Firmware**.
 It intentionally does **not** create another Power sensor.
 
 ### Select the antenna (firmware 1.11+)
@@ -90,6 +90,19 @@ minutes. The digits remain only in memory; HA state/history get a masked
 placeholder. The field clears after the send attempt. The IR transmit LED
 must face the meter's optical **control** point, which may differ from the
 SML reading point. See [optical PIN details](firmware/README.md#optical-pin-entry).
+
+### Navigate the meter display manually (firmware 1.11+)
+
+Press **Short light pulse** for one 500 ms flash or **Long light pulse** for
+one 5-second flash. These use the same GPIO16 optical TX head as Send PIN and
+pause SML reception while transmitting. Watch the physical meter display;
+the button confirms that the pulse was accepted for transmission, not that
+the meter acted on it. EMH defines a long press as over 4.5 seconds.
+
+**Be careful with Long light pulse:** its action depends on the currently
+displayed meter menu item. On some screens it can toggle InF or erase
+historical readings. Do not press it on an E CLr or HIS CLr confirmation
+screen unless you intend to clear those values.
 
 ### Update firmware over Thread
 
