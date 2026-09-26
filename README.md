@@ -143,6 +143,6 @@ IDs may change, so review dashboards and automations that reference them.
 - [Licensing and attribution](firmware/LICENSES.md)
 
 The [latest firmware release](https://github.com/Mosher23/IR-Thread-Meter/releases/latest)
-is currently v1.10 (Matter numeric version 11). Release checksums guard
+is currently v1.11 (Matter numeric version 12). Release checksums guard
 against accidental corruption; this test-device setup does not provide
 production signing, secure boot, or production Matter attestation.

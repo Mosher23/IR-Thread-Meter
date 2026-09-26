@@ -14,7 +14,7 @@ over the ESP32-C6's built-in Thread radio.
 - Manufacturer: `SimpleIdeas`
 - Product and commissionable name: `IR Power Meter`
 - Development VID/PID: `0xFFF1` / `0x8000`
-- Software version: `11` (`1.10`; `1.7` was the USB-only OTA bootstrap)
+- Software version: `12` (`1.11`; `1.7` was the USB-only OTA bootstrap)
 - Hardware version: `1` (`1.0`)
 - Development serial number: `00000001`
 - ESP-IDF project name: `IR_Meter_Thread_Matter`
