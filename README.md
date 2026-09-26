@@ -61,9 +61,27 @@ HACS installs only the HA companion, **not XIAO firmware**. For manual
 installation, copy `custom_components/smartmeter` to
 `/config/custom_components/smartmeter`, restart HA, and add the integration.
 
-The companion provides **OBIS Received**, **Manufacturer**, and **Meter ID**
-diagnostics; **Meter PIN** and **Send PIN** controls; and **OTA Firmware**.
+The companion provides **OBIS Received**, **Manufacturer**, **Meter ID**, and
+**Active antenna** diagnostics; **Meter PIN** and **Send PIN** controls; and
+**OTA Firmware**.
 It intentionally does **not** create another Power sensor.
+
+### Select the antenna (firmware 1.11+)
+
+The Matter device exposes an On/Off switch on the meter endpoint. **Off means
+the built-in ceramic antenna; On means the external U.FL antenna.** Home
+Assistant may initially label this generic Matter switch like an outlet; rename
+it **External antenna** so it is not mistaken for a switch that turns the meter
+on or off. The companion's **Active antenna** diagnostic displays the actual
+selection. If the switch does not appear after an OTA upgrade, re-interview the
+node in Matter Server or reload Home Assistant's Matter integration; do not
+remove the existing pairing.
+
+The selection takes effect immediately and is saved across reboots, OTA, and
+Matter factory resets. Connect the external antenna *before* switching to it.
+If Thread becomes unreachable, tap the XIAO's **BOOT button three times**
+while it is running to restore the internal antenna and restart. Alternatively,
+connect USB and enter `antenna internal` at the device's serial console.
 
 ### Enter a meter PIN
 
@@ -93,6 +111,7 @@ See the [USB and OTA guide](BOOTSTRAP_AND_OTA.md#update-over-thread).
 | Companion diagnostics are unknown | Confirm the Matter device is online and SML is received. Some meters omit ID/manufacturer OBIS fields. |
 | Sending a PIN does not change the meter display | Check GPIO16 → head RX, transmit support, and optical control-point alignment. |
 | OTA Firmware offers no update | Check `compatibility_issue` and `last_error` in Developer tools → States. The GitHub check runs every six hours; refresh the entity to check sooner. |
+| Device disconnects after selecting the external antenna | Check that the external antenna is attached. Tap BOOT three times while running to restore the internal antenna, or use the USB console command `antenna internal`. |
 
 ## Migrating an old `smartmeter_pin` installation
 

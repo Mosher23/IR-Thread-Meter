@@ -34,3 +34,18 @@ bool board_config_init()
     }
     return antenna == 1;
 }
+
+esp_err_t board_config_set_antenna(bool external)
+{
+    nvs_handle_t handle;
+    esp_err_t error = nvs_open_from_partition("board_cfg", "board", NVS_READWRITE, &handle);
+    if (error != ESP_OK) {
+        return error;
+    }
+    error = nvs_set_u8(handle, "antenna", external ? 1 : 0);
+    if (error == ESP_OK) {
+        error = nvs_commit(handle);
+    }
+    nvs_close(handle);
+    return error;
+}

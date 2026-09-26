@@ -139,6 +139,13 @@ the radio. Both variants drive GPIO3 low before configuring GPIO14. The
 internal build drives GPIO14 low for ceramic; the external build drives it high
 for U.FL/IPEX, following the
 [official Seeed RF-switch sequence](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/#hardware-overview).
+From firmware 1.11 onward, the existing Matter meter endpoint also exposes an
+On/Off antenna selector: Off = internal, On = external. A Matter controller
+can change the antenna without reflashing; the new selection is saved in
+`board_cfg` and the GPIO14 RF switch changes immediately. On an uninitialized
+board, the internal USB build remains the default. Existing external-antenna
+boards keep their saved selection through OTA. Connect the external antenna
+before switching to it, since a lost Thread connection prevents remote recovery.
 
 To change pins, baud rate, or report intervals:
 
@@ -187,6 +194,12 @@ Thread failures.
   which the breathing animation resumes.
 - At startup, the serial log reports `Saved RF antenna: internal` or
   `Saved RF antenna: external`.
+- The Matter On/Off antenna switch persists its choice. The USB console command
+  `antenna internal` (or `antenna external`) saves the choice and restarts;
+  use `antenna internal` to recover from a wrong remote selection.
+- Three short taps of BOOT while firmware is running also restore the internal
+  antenna and restart, without erasing Matter credentials. The existing
+  five-second BOOT hold still performs a Matter factory reset.
 - Reports are emitted only after the complete SML frame passes its CRC check.
 - Hold BOOT for five seconds while the firmware is running to erase Matter
   fabrics and Thread credentials.

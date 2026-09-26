@@ -9,9 +9,11 @@
 #include <app/data-model/List.h>
 #include <data_model_provider/clusters/electrical_energy_measurement/integration.h>
 #include <driver/gpio.h>
+#include <esp_console.h>
 #include <esp_err.h>
 #include <esp_log.h>
 #include <esp_ota_ops.h>
+#include <esp_system.h>
 #include <esp_matter.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -23,6 +25,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <atomic>
+#include <cstring>
 
 using namespace chip;
 using namespace chip::app;
@@ -38,9 +41,59 @@ uint16_t g_meter_endpoint_id = 0;
 bool g_external_antenna = false;
 std::atomic<bool> g_energy_initialized{false};
 
-esp_err_t attribute_update_cb(attribute::callback_type_t, uint16_t, uint32_t, uint32_t,
-                              esp_matter_attr_val_t *, void *)
+void publish_antenna_diagnostic(intptr_t)
 {
+    esp_matter_attr_val_t value = esp_matter_bool(g_external_antenna);
+    const esp_err_t error = attribute::update(
+        g_meter_endpoint_id, kSmartMeterDiagnosticsClusterId,
+        kSmartMeterExternalAntennaAttributeId, &value);
+    if (error != ESP_OK) {
+        ESP_LOGE(TAG, "Could not update antenna diagnostic: %s", esp_err_to_name(error));
+    }
+}
+
+esp_err_t attribute_update_cb(attribute::callback_type_t type, uint16_t endpoint_id,
+                              uint32_t cluster_id, uint32_t attribute_id,
+                              esp_matter_attr_val_t *value, void *)
+{
+    if (type != attribute::PRE_UPDATE || endpoint_id != g_meter_endpoint_id ||
+        cluster_id != OnOff::Id || attribute_id != OnOff::Attributes::OnOff::Id) {
+        return ESP_OK;
+    }
+    if (value == nullptr) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    const bool external = value->val.b;
+    if (external == g_external_antenna) {
+        return ESP_OK;
+    }
+    // Keep the independent board setting authoritative across OTA and Matter
+    // factory resets. Reject the Matter command if the change cannot be saved.
+    esp_err_t error = board_config_set_antenna(external);
+    if (error != ESP_OK) {
+        ESP_LOGE(TAG, "Could not save antenna selection: %s", esp_err_to_name(error));
+        return error;
+    }
+    error = gpio_set_level(
+        static_cast<gpio_num_t>(CONFIG_SMARTMETER_RF_SWITCH_SELECT_GPIO), external ? 1 : 0);
+    if (error != ESP_OK) {
+        ESP_LOGE(TAG, "Could not change antenna: %s", esp_err_to_name(error));
+        const esp_err_t rollback = board_config_set_antenna(g_external_antenna);
+        if (rollback != ESP_OK) {
+            ESP_LOGE(TAG, "Could not restore previous antenna setting: %s",
+                     esp_err_to_name(rollback));
+        }
+        return error;
+    }
+    g_external_antenna = external;
+    ESP_LOGW(TAG, "RF antenna switched to %s", external ? "external" : "internal");
+    const CHIP_ERROR schedule_error = DeviceLayer::PlatformMgr().ScheduleWork(
+        publish_antenna_diagnostic, 0);
+    if (schedule_error != CHIP_NO_ERROR) {
+        ESP_LOGE(TAG, "Could not schedule antenna diagnostic: %" CHIP_ERROR_FORMAT,
+                 schedule_error.Format());
+    }
     return ESP_OK;
 }
 
@@ -92,6 +145,25 @@ void configure_rf_antenna()
     ESP_ERROR_CHECK(gpio_set_direction(select_gpio, GPIO_MODE_OUTPUT));
     ESP_ERROR_CHECK(gpio_set_level(select_gpio, g_external_antenna ? 1 : 0));
     ESP_LOGI(TAG, "Saved RF antenna: %s", g_external_antenna ? "external" : "internal");
+}
+
+int antenna_console_command(int argc, char **argv)
+{
+    if (argc != 2 || (std::strcmp(argv[1], "internal") != 0 &&
+                      std::strcmp(argv[1], "external") != 0)) {
+        std::printf("Usage: antenna internal|external\n");
+        return 1;
+    }
+    const bool external = std::strcmp(argv[1], "external") == 0;
+    const esp_err_t error = board_config_set_antenna(external);
+    if (error != ESP_OK) {
+        std::printf("Could not save antenna selection: %s\n", esp_err_to_name(error));
+        return 1;
+    }
+    std::printf("Saved %s antenna; restarting.\n", external ? "external" : "internal");
+    std::fflush(stdout);
+    esp_restart();
+    return 0;
 }
 
 void matter_event_cb(const ChipDeviceEvent *event, intptr_t)
@@ -178,18 +250,41 @@ void factory_reset_button_task(void *)
     ESP_ERROR_CHECK(gpio_config(&config));
 
     TickType_t pressed_since = 0;
+    TickType_t last_short_release = 0;
+    unsigned short_presses = 0;
     while (true) {
+        const TickType_t now = xTaskGetTickCount();
         const bool pressed = gpio_get_level(
                                  static_cast<gpio_num_t>(CONFIG_SMARTMETER_FACTORY_RESET_GPIO)) == 0;
         if (pressed) {
             if (pressed_since == 0) {
-                pressed_since = xTaskGetTickCount();
-            } else if ((xTaskGetTickCount() - pressed_since) >= pdMS_TO_TICKS(5000)) {
+                pressed_since = now;
+            } else if ((now - pressed_since) >= pdMS_TO_TICKS(5000)) {
                 ESP_LOGW(TAG, "Factory reset requested");
                 esp_matter::factory_reset();
                 vTaskDelete(nullptr);
             }
         } else {
+            if (pressed_since != 0 && (now - pressed_since) <= pdMS_TO_TICKS(700)) {
+                if (short_presses != 0 &&
+                    (now - last_short_release) > pdMS_TO_TICKS(2000)) {
+                    short_presses = 0;
+                }
+                last_short_release = now;
+                if (++short_presses == 3) {
+                    ESP_LOGW(TAG, "Three BOOT taps: restoring internal antenna");
+                    const esp_err_t error = board_config_set_antenna(false);
+                    if (error == ESP_OK) {
+                        esp_restart();
+                    }
+                    ESP_LOGE(TAG, "Could not restore internal antenna: %s",
+                             esp_err_to_name(error));
+                    short_presses = 0;
+                }
+            } else if (short_presses != 0 &&
+                       (now - last_short_release) > pdMS_TO_TICKS(2000)) {
+                short_presses = 0;
+            }
             pressed_since = 0;
         }
         vTaskDelay(pdMS_TO_TICKS(50));
@@ -245,17 +340,17 @@ extern "C" void app_main()
     }
     g_meter_endpoint_id = endpoint::get_id(meter_endpoint);
 
-    // This deliberately is a vendor-specific, read-only Matter diagnostic.
-    // A controller that does not know this cluster safely ignores it; the
-    // companion Home Assistant integration exposes it as a diagnostic binary
-    // sensor named "Active-power OBIS received".
+    // Read-only vendor diagnostics remain separate from the standard Matter
+    // On/Off antenna control. Unknown controllers safely ignore these values.
     cluster_t *diagnostics_cluster =
         cluster::create(meter_endpoint, kSmartMeterDiagnosticsClusterId, CLUSTER_FLAG_SERVER);
     static char empty_meter_identity[] = "";
     if (diagnostics_cluster == nullptr ||
-        attribute::create(diagnostics_cluster, 3, ATTRIBUTE_FLAG_NONE,
+        attribute::create(diagnostics_cluster, kSmartMeterExternalAntennaAttributeId,
+                          ATTRIBUTE_FLAG_NONE,
                           esp_matter_bool(g_external_antenna)) == nullptr ||
-        attribute::create(diagnostics_cluster, 4, ATTRIBUTE_FLAG_NONE,
+        attribute::create(diagnostics_cluster, kSmartMeterOtaReadyAttributeId,
+                          ATTRIBUTE_FLAG_NONE,
                           esp_matter_bool(true)) == nullptr ||
         attribute::create(diagnostics_cluster, kSmartMeterActivePowerObisSeenAttributeId,
                           ATTRIBUTE_FLAG_NONE, esp_matter_bool(false)) == nullptr ||
@@ -268,6 +363,17 @@ extern "C" void app_main()
                           esp_matter_char_str(empty_meter_identity, 0),
                           kSmartMeterIdentityMaxLength) == nullptr) {
         ESP_LOGE(TAG, "Failed to create smart-meter diagnostics cluster");
+        abort();
+    }
+
+    // On means external U.FL antenna, Off means internal ceramic antenna.
+    // The OnOff cluster is on the existing meter endpoint so commissioning and
+    // the meter's endpoint ID stay unchanged across an OTA update.
+    cluster::on_off::config_t antenna_config = {};
+    antenna_config.on_off = g_external_antenna;
+    if (cluster::on_off::create(meter_endpoint, &antenna_config,
+                                CLUSTER_FLAG_SERVER) == nullptr) {
+        ESP_LOGE(TAG, "Failed to create Matter antenna switch");
         abort();
     }
 
@@ -315,6 +421,17 @@ extern "C" void app_main()
     error = smart_meter_register_console_commands();
     if (error != ESP_OK) {
         ESP_LOGW(TAG, "Failed to register meter-pin console command: %s",
+                 esp_err_to_name(error));
+    }
+
+    esp_console_cmd_t antenna_command = {};
+    antenna_command.command = "antenna";
+    antenna_command.help = "Select the internal or external antenna and restart";
+    antenna_command.hint = "<internal|external>";
+    antenna_command.func = antenna_console_command;
+    error = esp_console_cmd_register(&antenna_command);
+    if (error != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to register antenna recovery command: %s",
                  esp_err_to_name(error));
     }
 

@@ -156,14 +156,16 @@ class CompanionTests(unittest.IsolatedAsyncioTestCase):
         self.runtime = Runtime(self.client, self.coordinator)
 
     async def test_one_poll_reads_all_diagnostics_without_duplicate_power(self):
-        self.client.read_attribute.return_value = {"0/40/9": 9}
+        self.client.read_attribute.return_value = {"0/40/9": 12}
         data = await self.coordinator._async_update_data()
-        self.assertEqual(data["0/40/9"], 9)
-        paths = self.client.read_attribute.await_args.args[1]
-        self.assertEqual(len(paths), 5)
+        self.assertEqual(data["0/40/9"], 12)
+        paths = self.client.read_attribute.await_args_list[0].args[1]
+        self.assertEqual(len(paths), 6)
         self.assertNotIn("1/144/8", paths)
         self.assertIn("0/40/9", paths)
         self.assertIn("0/40/10", paths)
+        self.assertIn("1/4294048769/3", paths)
+        self.assertEqual(self.client.read_attribute.await_args_list[1].args[1], "1/6/0")
         self.assertEqual(self.coordinator.update_interval.total_seconds(), 30)
 
     async def test_sensor_platform_only_adds_meter_identity(self):
@@ -172,7 +174,35 @@ class CompanionTests(unittest.IsolatedAsyncioTestCase):
         registry = types.SimpleNamespace(async_get_entity_id=lambda *_: None)
         with patch.object(sensor.er, "async_get", return_value=registry):
             await sensor.async_setup_entry(None, entry, entities.extend)
-        self.assertEqual([entity._attr_name for entity in entities], ["Meter ID", "Manufacturer"])
+        self.assertEqual([entity._attr_name for entity in entities], ["Meter ID", "Manufacturer", "Active antenna"])
+
+    async def test_antenna_diagnostic_reports_live_switch_and_legacy_setting(self):
+        active = sensor.ActiveAntennaSensor(self.runtime)
+        self.assertIsNone(active.native_value)
+        self.coordinator.data = {active._diagnostic_path: False}
+        self.assertEqual(active.native_value, "Internal")
+        self.coordinator.data[active._switch_path] = True
+        self.assertEqual(active.native_value, "External")
+        self.coordinator.data[active._switch_path] = None
+        self.assertIsNone(active.native_value)
+
+    async def test_antenna_switch_read_failure_preserves_other_diagnostics(self):
+        self.client.read_attribute.side_effect = [
+            {"1/4294048769/3": True, "0/40/9": 12, "0/40/10": "1.11"},
+            RuntimeError("On/Off cluster not installed"),
+        ]
+        data = await self.coordinator._async_update_data()
+        self.coordinator.data = data
+        self.assertEqual(sensor.ActiveAntennaSensor(self.runtime).native_value, "External")
+        self.assertEqual(data["0/40/10"], "1.11")
+
+    async def test_old_firmware_uses_saved_antenna_without_probing_switch(self):
+        self.client.read_attribute.return_value = {
+            "1/4294048769/3": False, "0/40/9": 11, "0/40/10": "1.10"
+        }
+        self.coordinator.data = await self.coordinator._async_update_data()
+        self.assertEqual(self.client.read_attribute.await_count, 1)
+        self.assertEqual(sensor.ActiveAntennaSensor(self.runtime).native_value, "Internal")
 
     def test_default_entity_names_match_home_assistant(self):
         self.assertEqual(text.MeterPinTextEntity._attr_name, "Meter PIN")
@@ -182,6 +212,7 @@ class CompanionTests(unittest.IsolatedAsyncioTestCase):
     def test_entity_devices_use_new_domain(self):
         entities = [
             sensor.MeterIdentitySensor(self.runtime, const.METER_ID_ATTRIBUTE_ID, "Meter ID", "identifier"),
+            sensor.ActiveAntennaSensor(self.runtime),
             binary_sensor.ActivePowerObisSeenSensor(self.runtime),
             text.MeterPinTextEntity(self.runtime),
             button.SendMeterPinButton(self.runtime),

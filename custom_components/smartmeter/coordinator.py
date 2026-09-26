@@ -13,8 +13,11 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .const import (
     ACTIVE_POWER_OBIS_SEEN_ATTRIBUTE_ID,
     DIAGNOSTICS_CLUSTER_ID,
+    EXTERNAL_ANTENNA_ATTRIBUTE_ID,
     METER_ID_ATTRIBUTE_ID,
     METER_MANUFACTURER_ATTRIBUTE_ID,
+    ON_OFF_ATTRIBUTE_ID,
+    ON_OFF_CLUSTER_ID,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,20 +43,39 @@ class SmartMeterCoordinator(DataUpdateCoordinator[dict[str, object]]):
                 ACTIVE_POWER_OBIS_SEEN_ATTRIBUTE_ID,
                 METER_ID_ATTRIBUTE_ID,
                 METER_MANUFACTURER_ATTRIBUTE_ID,
+                EXTERNAL_ANTENNA_ATTRIBUTE_ID,
             )
         ]
         # Basic Information software version and string, for prompt HA update
         # entity refresh after an OTA reboot rather than a multi-minute wait.
         self.paths.extend(("0/40/9", "0/40/10"))
+        self.antenna_switch_path = create_attribute_path(
+            endpoint_id, ON_OFF_CLUSTER_ID, ON_OFF_ATTRIBUTE_ID
+        )
 
     async def _async_update_data(self) -> dict[str, object]:
         try:
             node = self.matter_client.get_node(self.node_id)
             if not node.available:
                 raise UpdateFailed("The Matter meter is offline")
-            return await asyncio.wait_for(
+            values = await asyncio.wait_for(
                 self.matter_client.read_attribute(self.node_id, self.paths), timeout=15
             )
+            # Firmware before the antenna switch has no On/Off cluster. Keep
+            # every existing diagnostic available during a staged OTA upgrade.
+            if isinstance(values.get("0/40/9"), int) and values["0/40/9"] >= 12:
+                try:
+                    values.update(
+                        await asyncio.wait_for(
+                            self.matter_client.read_attribute(
+                                self.node_id, self.antenna_switch_path
+                            ),
+                            timeout=5,
+                        )
+                    )
+                except Exception:
+                    _LOGGER.debug("Matter antenna switch is not readable on node %s", self.node_id)
+            return values
         except UpdateFailed:
             raise
         except Exception as err:

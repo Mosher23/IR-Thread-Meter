@@ -58,7 +58,13 @@ The script verifies the downloaded files and asks you to type `FLASH`.
 It writes the bootloader, partition table, OTA selection, and application—not
 the whole flash. The selected antenna is stored separately on first boot;
 flashing the other antenna image later does **not** override an existing
-saved choice.
+saved choice. Firmware 1.11 and later can change that saved choice through
+the Matter On/Off antenna switch without flashing. Off selects the internal
+antenna; On selects the external antenna. If a switch to the external antenna
+disconnects Thread, use the XIAO's USB serial console command
+`antenna internal` to restore the internal antenna and restart, or tap BOOT
+three times while the firmware is running. A Matter
+factory reset does not change the saved antenna setting.
 
 After reboot, [add the meter to Matter](README.md#add-the-meter-to-matter)
 and [install the optional companion](README.md#install-the-home-assistant-companion).
@@ -113,7 +119,8 @@ python scripts/package_release.py --output dist/release
 ```
 
 The internal/external builds are for USB bootstrap. The universal OTA build
-requires an antenna choice already saved by USB bootstrap. The packaging
+requires an antenna choice already saved by USB bootstrap; from firmware
+1.11 onward that choice can subsequently be changed over Matter. The packaging
 script checks version consistency and image size. Increment numeric and
 text version markers together in `firmware/main/MatterProjConfig.h`,
 `firmware/CMakeLists.txt`, and `firmware/sdkconfig.defaults` as appropriate.
