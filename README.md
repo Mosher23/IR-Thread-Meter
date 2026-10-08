@@ -8,22 +8,29 @@ optical PIN entry, and GitHub firmware updates.
 > This is a development project, not a certified Matter product. It uses a
 > test certificate, development vendor ID, and sample serial number.
 
-## Choose your path
+## What you need
 
-| If you... | Start here |
-| --- | --- |
-| Have a new XIAO | [Flash the latest firmware over USB](BOOTSTRAP_AND_OTA.md#first-time-usb-flash), then [add it to Matter](#add-the-meter-to-matter). |
-| Have firmware 1.6 or older | [Do the one-time USB migration](BOOTSTRAP_AND_OTA.md#upgrading-from-firmware-older-than-17); do not erase the whole flash. |
-| Have firmware 1.7 or newer | [Install the Home Assistant companion](#install-the-home-assistant-companion), then use **OTA Firmware** for later releases. |
-| Already have a working Matter device | Add the companion only if you want PIN entry, diagnostics, or GitHub OTA. No re-pairing is needed. |
+- A Seeed **XIAO ESP32-C6 with 4 MB flash**, a USB data cable, and stable power.
+- An electricity meter with **SML output** and a compatible **3.3 V UART** optical head.
+- A **Thread Border Router** and a Matter controller, such as Home Assistant.
+- For companion OTA updates: **Home Assistant Core 2026.9+** and a Matter
+  Server app with **API schema 13+**.
 
-You need a XIAO ESP32-C6, a compatible **3.3 V UART** optical head, stable
-power, and a Thread Border Router. Connect **head TX → XIAO GPIO17 (D7/RX)**
-and a common ground. For optical PIN transmission, also connect
-**XIAO GPIO16 (D6/TX) → head RX**. A head powered from the XIAO's 5 V pin
-must still have a **3.3 V-safe UART output**. See [wiring details](firmware/README.md#hardware).
+Connect **head TX → XIAO GPIO17 (D7/RX)** and a common ground. For optical
+PIN transmission, also connect **XIAO GPIO16 (D6/TX) → head RX**. A head
+powered from the XIAO's 5 V pin must still have a **3.3 V-safe UART output**.
+See [wiring details](firmware/README.md#hardware).
 
-## Add the meter to Matter
+## Setup
+
+### Flash the firmware
+
+[Download the latest firmware release](https://github.com/Mosher23/IR-Thread-Meter/releases/latest)
+and follow the [first-time USB flashing guide](BOOTSTRAP_AND_OTA.md#first-time-usb-flash).
+Choose the internal antenna image, or the external image if an external
+antenna is attached.
+
+### Add the meter to Matter
 
 1. Flash the firmware and power the XIAO within range of your Thread network.
 2. Attach the IR head to the meter. If available, unlock detailed SML output
@@ -41,7 +48,7 @@ shows a live `ActivePower` value, reload the HA **Matter** integration while
 the head is reading. HA Core 2026.9 can skip Power discovery when the value is
 null at startup. Do not erase or re-pair the XIAO as a first step.
 
-## Install the Home Assistant companion
+### Install the Home Assistant companion
 
 The companion is optional and does **not** replace the Matter integration.
 Install it after your meter appears in Home Assistant Matter.
@@ -61,12 +68,17 @@ HACS installs only the HA companion, **not XIAO firmware**. For manual
 installation, copy `custom_components/smartmeter` to
 `/config/custom_components/smartmeter`, restart HA, and add the integration.
 
-The companion provides **OBIS Received**, **Manufacturer**, **Meter ID**, and
-**Active antenna** diagnostics; **Meter PIN**, **Send PIN**, **Short light
-pulse**, and **Long light pulse** controls; and **OTA Firmware**.
-It intentionally does **not** create another Power sensor.
+| Integration | Entities and controls |
+| --- | --- |
+| Home Assistant Matter | Native **Energy**, **Power**, and the antenna On/Off switch. |
+| IR Smart Meter companion | **OBIS Received**, **Manufacturer**, **Meter ID**, and **Active antenna** diagnostics; **Meter PIN**, **Send PIN**, **Short light pulse**, **Long light pulse**, and **OTA Firmware**. |
 
-### Select the antenna (firmware 1.12+)
+The companion uses your existing Matter device and does not create another
+Power sensor. No re-pairing is needed to add it.
+
+## Using the meter
+
+### Select the antenna
 
 The Matter device exposes an On/Off switch on the meter endpoint. **Off means
 the built-in ceramic antenna; On means the external U.FL antenna.** Home
@@ -74,25 +86,16 @@ Assistant currently names this generic On/Off entity after the whole device.
 Rename its **display name** to **External Antenna** in the HA entity settings so
 it is not mistaken for a switch that turns the meter on or off. This name is
 controlled by HA's Matter integration and cannot be forced by this firmware
-without also renaming the entire meter device. The companion's **Active antenna** diagnostic displays the actual
-selection. If the switch does not appear after an OTA upgrade, re-interview the
-node in Matter Server or reload Home Assistant's Matter integration; do not
-remove the existing pairing.
-
-Firmware 1.11 exposed the switch but accidentally registered only the Matter
-**Off** command. If Home Assistant reports **Unsupported command (129)** when
-you turn it back on, install firmware 1.12 or later. The device can remain
-reachable over Thread while returning this error; it is not a range problem.
+without also renaming the entire meter device. The companion's **Active antenna**
+diagnostic displays the actual selection.
 
 The selection takes effect immediately and is saved across reboots, OTA, and
 Matter factory resets. Connect the external antenna *before* switching to it.
 If the newly selected antenna cannot reach the Thread network, HA cannot send
-the reverse command. On firmware 1.12+, tap the XIAO's **BOOT button three
-times** while it is running to toggle back to the previous antenna and restart.
-On firmware 1.11, three BOOT taps only select the internal antenna; if you lost
-the connection *after selecting internal*, use the USB console command
-`antenna external` or temporarily bring a Thread router within range and turn
-the Matter switch back on. These recovery actions preserve Matter credentials.
+the reverse command. Tap the XIAO's **BOOT button three times** while it is
+running to toggle to the other antenna and restart. You can also use the USB
+console command `antenna internal` or `antenna external` to select an antenna
+and restart. These recovery actions preserve Matter credentials.
 
 ### Enter a meter PIN
 
@@ -102,7 +105,7 @@ placeholder. The field clears after the send attempt. The IR transmit LED
 must face the meter's optical **control** point, which may differ from the
 SML reading point. See [optical PIN details](firmware/README.md#optical-pin-entry).
 
-### Navigate the meter display manually (firmware 1.11+)
+### Navigate the meter display manually
 
 Press **Short light pulse** for one 500 ms flash or **Long light pulse** for
 one 5-second flash. These use the same GPIO16 optical TX head as Send PIN and
@@ -115,11 +118,11 @@ displayed meter menu item. On some screens it can toggle InF or erase
 historical readings. Do not press it on an E CLr or HIS CLr confirmation
 screen unless you intend to clear those values.
 
-### Update firmware over Thread
+## Firmware updates
 
-After firmware **1.7 or newer** has been USB-bootstrapped, open the companion
-device's **OTA Firmware** entity. Click **Install** when a compatible newer
-release appears. The image is downloaded from GitHub, validated, transferred
+Open the companion device's **OTA Firmware** entity in Home Assistant.
+Click **Install** when a compatible newer release appears. The image is
+downloaded from GitHub, validated, transferred
 via Matter Server, and followed by a XIAO reboot. **Updates never install
 automatically.** Keep power and Thread connectivity stable. The separate
 native Matter **Firmware** entity may show different update information; use
@@ -135,17 +138,7 @@ See the [USB and OTA guide](BOOTSTRAP_AND_OTA.md#update-over-thread).
 | Companion diagnostics are unknown | Confirm the Matter device is online and SML is received. Some meters omit ID/manufacturer OBIS fields. |
 | Sending a PIN does not change the meter display | Check GPIO16 → head RX, transmit support, and optical control-point alignment. |
 | OTA Firmware offers no update | Check `compatibility_issue` and `last_error` in Developer tools → States. The GitHub check runs every six hours; refresh the entity to check sooner. |
-| Device disconnects after selecting the external antenna | Check that the external antenna is attached. Tap BOOT three times while running to restore the internal antenna, or use the USB console command `antenna internal`. |
-
-## Migrating an old `smartmeter_pin` installation
-
-Companion version 2.0 renamed the domain and folder to `smartmeter`. HA
-cannot migrate the old config entry automatically. Back up HA, remove **only**
-the old companion entry, install this repository's `main` branch through
-HACS, move the leftover `/config/custom_components/smartmeter_pin` folder
-out of `custom_components`, restart HA, and add **IR Smart Meter** again
-with the same Matter device. **Keep the Matter pairing.** Companion entity
-IDs may change, so review dashboards and automations that reference them.
+| Device disconnects after changing the antenna | Check that the selected antenna is attached. Tap BOOT three times while running to toggle to the other antenna, or select one with `antenna internal` / `antenna external` in the USB console. |
 
 ## More information
 
@@ -153,7 +146,5 @@ IDs may change, so review dashboards and automations that reference them.
 - [Firmware build, wiring, OBIS mapping, and commissioning](firmware/README.md)
 - [Licensing and attribution](firmware/LICENSES.md)
 
-The [latest firmware release](https://github.com/Mosher23/IR-Thread-Meter/releases/latest)
-is currently v1.12 (Matter numeric version 13). Release checksums guard
-against accidental corruption; this test-device setup does not provide
-production signing, secure boot, or production Matter attestation.
+Release checksums guard against accidental corruption; this test-device setup
+does not provide production signing, secure boot, or production Matter attestation.

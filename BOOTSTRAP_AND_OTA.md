@@ -2,10 +2,9 @@
 
 There are two separate installs:
 
-- **USB flash:** puts firmware on the XIAO. Required for a new board and once
-  when migrating from firmware 1.6 or older.
+- **USB flash:** puts firmware on a new XIAO.
 - **HACS install:** adds the optional Home Assistant companion. It does not
-  flash the board. Once firmware 1.7+ is on the XIAO, the companion's
+  flash the board. After setup, the companion's
   **OTA Firmware** entity can install later releases over Thread.
 
 ## Before you start
@@ -58,7 +57,7 @@ The script verifies the downloaded files and asks you to type `FLASH`.
 It writes the bootloader, partition table, OTA selection, and application—not
 the whole flash. The selected antenna is stored separately on first boot;
 flashing the other antenna image later does **not** override an existing
-saved choice. Firmware 1.11 and later can change that saved choice through
+saved choice. You can change that saved choice through
 the Matter On/Off antenna switch without flashing. Off selects the internal
 antenna; On selects the external antenna. If a switch to the external antenna
 disconnects Thread, use the XIAO's USB serial console command
@@ -69,19 +68,9 @@ factory reset does not change the saved antenna setting.
 After reboot, [add the meter to Matter](README.md#add-the-meter-to-matter)
 and [install the optional companion](README.md#install-the-home-assistant-companion).
 
-## Upgrading from firmware older than 1.7
-
-Version **1.7 introduced** the updated partition layout, persistent antenna
-selection, and rollback support. An older 1.6-or-earlier installation cannot
-safely jump to a newer release over Thread. Follow the USB steps above and
-choose the antenna your hardware actually uses. The script does not erase
-the whole flash, so existing Matter fabrics and Thread credentials should
-remain in place. If it does not reconnect, check power and Thread before
-trying OTA. Do not factory-reset or erase as a first troubleshooting step.
-
 ## Update over Thread
 
-After the one-time USB bootstrap (firmware 1.7 or newer), use
+After flashing and commissioning the meter, use
 **IR Smart Meter → OTA Firmware** in Home Assistant:
 
 1. Keep the XIAO powered and connected to Thread.
@@ -96,8 +85,7 @@ To check sooner, use HA's **Update entity** action on **OTA Firmware**.
 Before transfer, the integration validates the release manifest, SHA-256,
 Matter OTA header, and embedded application version. If it fails, inspect
 the entity's `ota_status`, `compatibility_issue`, and `last_error`
-attributes in **Developer tools → States**. Firmware v1.7 is USB-only and
-is deliberately not offered as an OTA update.
+attributes in **Developer tools → States**.
 
 The native Matter **Firmware** entity is not this GitHub release checker.
 It may show different available-version information. Use the companion
@@ -118,15 +106,15 @@ bash scripts/build.sh ota
 python scripts/package_release.py --output dist/release
 ```
 
-The internal/external builds are for USB bootstrap. The universal OTA build
-requires an antenna choice already saved by USB bootstrap; from firmware
-1.11 onward that choice can subsequently be changed over Matter. The packaging
+The internal/external builds are for first-time USB flashing. The universal
+OTA build requires an antenna choice already saved during initial setup;
+that choice can subsequently be changed over Matter. The packaging
 script checks version consistency and image size. Increment numeric and
 text version markers together in `firmware/main/MatterProjConfig.h`,
 `firmware/CMakeLists.txt`, and `firmware/sdkconfig.defaults` as appropriate.
 
 Push tested source, then publish a stable GitHub release whose tag matches
-the firmware string version (for example, `v1.9`). GitHub Actions builds
+the firmware string version (for example, `v1.12`). GitHub Actions builds
 the pinned SDK, runs tests, checks the tag, and attaches individual assets
 with `ota-manifest.json` **last**. Do not replace published assets or reuse
 a Matter numeric software version. Test an image on an accessible meter
