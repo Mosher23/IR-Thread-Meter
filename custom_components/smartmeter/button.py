@@ -13,7 +13,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import SmartMeterRuntimeData
-from .const import DOMAIN
+from .const import companion_device_info
 
 _CEC_DIGIT_ZERO = 0x20
 _CEC_SELECT = 0x00
@@ -42,10 +42,7 @@ class MeterCommandButton(ButtonEntity):
 
     def __init__(self, runtime: SmartMeterRuntimeData) -> None:
         self._runtime = runtime
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, runtime.device_id)},
-            "name": "IR Smart Meter",
-        }
+        self._attr_device_info = companion_device_info(runtime.device_id)
         self._unsub_node = None
 
     @property

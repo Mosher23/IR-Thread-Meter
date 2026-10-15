@@ -63,7 +63,10 @@ class SmartMeterCoordinator(DataUpdateCoordinator[dict[str, object]]):
             )
             # Firmware before the antenna switch has no On/Off cluster. Keep
             # every existing diagnostic available during a staged OTA upgrade.
-            if isinstance(values.get("0/40/9"), int) and values["0/40/9"] >= 12:
+            # 1.14 (software version 15) removes the endpoint-1 switch.
+            # Its read-only diagnostic remains authoritative, so do not probe
+            # the removed attribute or overwrite it with an unsupported/null value.
+            if isinstance(values.get("0/40/9"), int) and 12 <= values["0/40/9"] < 15:
                 try:
                     values.update(
                         await asyncio.wait_for(

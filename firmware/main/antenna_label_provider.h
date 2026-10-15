@@ -42,7 +42,7 @@ private:
                 return false;
             }
             value.label = chip::CharSpan::fromCharString("name");
-            value.value = chip::CharSpan::fromCharString("External Antenna");
+            value.value = chip::CharSpan::fromCharString("External antenna");
             mRead = true;
             return true;
         }

@@ -12,7 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import SmartMeterRuntimeData
-from .const import ACTIVE_POWER_OBIS_SEEN_ATTRIBUTE_ID, DIAGNOSTICS_CLUSTER_ID, DOMAIN
+from .const import ACTIVE_POWER_OBIS_SEEN_ATTRIBUTE_ID, DIAGNOSTICS_CLUSTER_ID, companion_device_info
 
 
 async def async_setup_entry(
@@ -35,10 +35,7 @@ class ActivePowerObisSeenSensor(CoordinatorEntity, BinarySensorEntity):
         super().__init__(runtime.coordinator)
         self._runtime = runtime
         self._attr_unique_id = f"{runtime.node_id}-active-power-obis-seen"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, runtime.device_id)},
-            "name": "IR Smart Meter",
-        }
+        self._attr_device_info = companion_device_info(runtime.device_id)
         self._attribute_path = create_attribute_path(
             runtime.endpoint_id,
             DIAGNOSTICS_CLUSTER_ID,

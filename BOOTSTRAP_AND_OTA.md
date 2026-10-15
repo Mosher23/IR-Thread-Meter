@@ -65,9 +65,12 @@ disconnects Thread, use the XIAO's USB serial console command
 three times while the firmware is running. A Matter
 factory reset does not change the saved antenna setting.
 
-Firmware **1.13** adds a separate **External Antenna** on/off accessory using
+Firmware **1.13** adds a separate **External antenna** on/off accessory using
 Apple Home's supported outlet device type. On means external, Off means internal.
-The previous HA antenna control remains available and stays synchronized.
+Firmware **1.14** removes the old duplicate control on the meter endpoint;
+only the separate antenna switch on endpoint 2 remains. Meter measurements and
+read-only antenna diagnostics are unchanged. Update any automations that used
+the old switch to use endpoint 2 instead.
 Apple Home may use an outlet icon and require renaming or rediscovery after
 an OTA update. See [antenna control and rediscovery](firmware/README.md#build)
 for details. Connect an external antenna before selecting it.

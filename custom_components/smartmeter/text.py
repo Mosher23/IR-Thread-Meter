@@ -13,7 +13,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import SmartMeterRuntimeData
-from .const import DOMAIN
+from .const import companion_device_info
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
@@ -41,10 +41,7 @@ class MeterPinTextEntity(TextEntity):
         """Initialize the entity."""
         self._runtime = runtime
         self._attr_unique_id = f"{runtime.node_id}-meter-pin"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, runtime.device_id)},
-            "name": "IR Smart Meter",
-        }
+        self._attr_device_info = companion_device_info(runtime.device_id)
         self._unsub_node = None
         runtime.clear_pin_display = self._clear_input
 

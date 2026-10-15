@@ -4,6 +4,20 @@ from __future__ import annotations
 
 DOMAIN = "smartmeter"
 CONF_DEVICE_ID = "device_id"
+INTEGRATION_VERSION = "2.1.3"
+PROJECT_URL = "https://github.com/Mosher23/IR-Thread-Meter"
+
+
+def companion_device_info(device_id: str) -> dict:
+    """Describe the HA companion, not the XIAO's separate Matter device."""
+    return {
+        "identifiers": {(DOMAIN, device_id)},
+        "name": "IR Smart Meter",
+        "manufacturer": "Mosher23",
+        "model": "Home Assistant companion integration",
+        "sw_version": INTEGRATION_VERSION,
+        "configuration_url": PROJECT_URL,
+    }
 
 
 def normalize_legacy_name(name: str | None) -> str | None:

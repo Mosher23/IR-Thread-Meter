@@ -137,7 +137,9 @@ class Runtime:
 class CompanionTests(unittest.IsolatedAsyncioTestCase):
     def test_domain_matches_install_directory(self):
         self.assertEqual(const.DOMAIN, ROOT.name)
-        self.assertEqual(json.loads((ROOT / "manifest.json").read_text())["domain"], ROOT.name)
+        manifest = json.loads((ROOT / "manifest.json").read_text())
+        self.assertEqual(manifest["domain"], ROOT.name)
+        self.assertEqual(manifest["version"], const.INTEGRATION_VERSION)
 
     def test_old_entry_and_device_names_drop_pin(self):
         self.assertEqual(const.normalize_legacy_name("IR Smart Meter PIN"), "IR Smart Meter")
@@ -204,6 +206,15 @@ class CompanionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.client.read_attribute.await_count, 1)
         self.assertEqual(sensor.ActiveAntennaSensor(self.runtime).native_value, "Internal")
 
+    async def test_firmware_1_14_uses_diagnostic_without_reading_removed_switch(self):
+        self.client.read_attribute.return_value = {
+            "1/4294048769/3": True, "0/40/9": 15, "0/40/10": "1.14"
+        }
+        self.coordinator.data = await self.coordinator._async_update_data()
+        self.assertEqual(self.client.read_attribute.await_count, 1)
+        self.assertNotIn("1/6/0", self.coordinator.data)
+        self.assertEqual(sensor.ActiveAntennaSensor(self.runtime).native_value, "External")
+
     def test_default_entity_names_match_home_assistant(self):
         self.assertEqual(text.MeterPinTextEntity._attr_name, "Meter PIN")
         self.assertEqual(button.SendMeterPinButton._attr_name, "Send PIN")
@@ -260,6 +271,10 @@ class CompanionTests(unittest.IsolatedAsyncioTestCase):
         ]
         for entity in entities:
             self.assertEqual(entity._attr_device_info["identifiers"], {("smartmeter", "meter-device")})
+            self.assertEqual(entity._attr_device_info["manufacturer"], "Mosher23")
+            self.assertEqual(entity._attr_device_info["model"], "Home Assistant companion integration")
+            self.assertEqual(entity._attr_device_info["sw_version"], const.INTEGRATION_VERSION)
+            self.assertEqual(entity._attr_device_info["configuration_url"], const.PROJECT_URL)
 
     async def test_removes_only_its_legacy_power_entity(self):
         removed = []

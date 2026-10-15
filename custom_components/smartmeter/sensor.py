@@ -21,6 +21,7 @@ from .const import (
     METER_MANUFACTURER_ATTRIBUTE_ID,
     ON_OFF_ATTRIBUTE_ID,
     ON_OFF_CLUSTER_ID,
+    companion_device_info,
 )
 
 
@@ -62,10 +63,7 @@ class ActiveAntennaSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, runtime: SmartMeterRuntimeData) -> None:
         super().__init__(runtime.coordinator)
         self._attr_unique_id = f"{runtime.node_id}-active-antenna"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, runtime.device_id)},
-            "name": "IR Smart Meter",
-        }
+        self._attr_device_info = companion_device_info(runtime.device_id)
         self._switch_path = create_attribute_path(
             runtime.endpoint_id, ON_OFF_CLUSTER_ID, ON_OFF_ATTRIBUTE_ID
         )
@@ -99,10 +97,7 @@ class MeterIdentitySensor(CoordinatorEntity, SensorEntity):
         self._attr_name = name
         self._attr_icon = f"mdi:{icon}"
         self._attr_unique_id = f"{runtime.node_id}-meter-identity-{attribute_id}"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, runtime.device_id)},
-            "name": "IR Smart Meter",
-        }
+        self._attr_device_info = companion_device_info(runtime.device_id)
         self._attribute_path = create_attribute_path(
             runtime.endpoint_id, DIAGNOSTICS_CLUSTER_ID, attribute_id
         )

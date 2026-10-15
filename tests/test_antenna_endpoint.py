@@ -11,14 +11,14 @@ APP = ROOT / "firmware/main/app_main.cpp"
 
 
 class AntennaEndpointTests(unittest.TestCase):
-    def test_endpoint_is_appended_and_keeps_legacy_control(self):
+    def test_only_separate_antenna_endpoint_is_a_switch(self):
         source = APP.read_text()
         self.assertLess(source.index("endpoint::electrical_meter::create("),
                         source.index("endpoint::on_off_plug_in_unit::create("))
         self.assertIn("external_antenna_config.on_off.on_off = g_external_antenna", source)
         self.assertIn("on_off_lighting.start_up_on_off = nullable<uint8_t>()", source)
         provider = (ROOT / "firmware/main/antenna_label_provider.h").read_text()
-        self.assertIn('CharSpan::fromCharString("External Antenna")', provider)
+        self.assertIn('CharSpan::fromCharString("External antenna")', provider)
         self.assertIn("static AntennaLabelProvider label_provider(g_antenna_endpoint_id)", source)
         self.assertIn("set_custom_device_info_provider(&label_provider)", source)
         defaults = (ROOT / "firmware/sdkconfig.defaults").read_text()
@@ -26,7 +26,9 @@ class AntennaEndpointTests(unittest.TestCase):
         self.assertNotIn("CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVIDER=y", defaults)
         self.assertIn("CONFIG_CUSTOM_DEVICE_INFO_PROVIDER=y", defaults)
         self.assertIn("g_antenna_endpoint_id = endpoint::get_id(antenna_endpoint)", source)
-        self.assertIn("meter_endpoint, &antenna_config, CLUSTER_FLAG_SERVER", source)
+        self.assertNotIn("cluster::on_off::create(", source)
+        self.assertNotIn("cluster::on_off::command::create_on(", source)
+        self.assertEqual(source.count("endpoint::on_off_plug_in_unit::create("), 1)
         self.assertIn("initialize_antenna_controls, 0", source)
 
     def test_firmware_version_metadata_is_consistent(self):
@@ -39,7 +41,7 @@ class AntennaEndpointTests(unittest.TestCase):
                       (ROOT / "firmware/sdkconfig.defaults").read_text())
 
     @unittest.skipUnless(shutil.which("c++"), "A C++ compiler is needed for callback tests")
-    def test_real_callbacks_sync_endpoints_and_preserve_saved_antenna(self):
+    def test_real_callbacks_only_control_endpoint_two_and_preserve_saved_antenna(self):
         source = APP.read_text()
         callbacks = source[source.index("void publish_antenna_diagnostic(intptr_t)"):
                            source.index("esp_err_t identification_cb(")]
@@ -64,7 +66,7 @@ esp_matter_attr_val_t esp_matter_bool(bool value) { return {{value}}; }
 esp_matter_attr_val_t esp_matter_invalid(void *) { return {{false}}; }
 namespace OnOff { constexpr int Id = 6; namespace Attributes { namespace OnOff { constexpr int Id = 0; } } }
 struct attribute_t { uint16_t endpoint; bool value; };
-attribute_t attributes[] = {{1, false}, {2, false}};
+attribute_t attributes[] = {{2, false}}; // Endpoint 1 has no On/Off cluster.
 uint16_t g_meter_endpoint_id = 1, g_antenna_endpoint_id = 2;
 bool g_external_antenna = false, g_antenna_controls_ready = true;
 bool saved = false, gpio_external = false, diagnostic = false;
@@ -84,7 +86,10 @@ int update(uint16_t, uint32_t, uint32_t, esp_matter_attr_val_t *);
 int attribute_update_cb(attribute::callback_type_t, uint16_t, uint32_t, uint32_t, esp_matter_attr_val_t *, void *);
 namespace attribute {
 int update(uint16_t endpoint, uint32_t cluster, uint32_t id, esp_matter_attr_val_t *value) {
-    if (cluster == kSmartMeterDiagnosticsClusterId) { diagnostic = value->val.b; return ESP_OK; }
+    if (cluster == kSmartMeterDiagnosticsClusterId) {
+        assert(endpoint == 1 && id == kSmartMeterExternalAntennaAttributeId);
+        diagnostic = value->val.b; return ESP_OK;
+    }
     auto *a = get(endpoint, cluster, id);
     assert(a);
     int result = attribute_update_cb(PRE_UPDATE, endpoint, cluster, id, value, nullptr);
@@ -119,19 +124,22 @@ int send(uint16_t endpoint, bool external) {
 }
 int main() {
     reset();
-    // New Apple endpoint On, legacy HA endpoint Off, and repeated toggles.
-    for (auto request : {std::pair<uint16_t, bool>{2, true}, {1, false}, {1, true}, {2, false}}) {
+    // The one surviving endpoint can be switched both ways repeatedly.
+    for (auto request : {std::pair<uint16_t, bool>{2, true}, {2, false}, {2, true}, {2, false}}) {
         const int previous_saves = saves;
         assert(send(request.first, request.second) == ESP_OK);
         flush();
         assert(g_external_antenna == request.second && saved == request.second);
         assert(gpio_external == request.second && diagnostic == request.second);
-        assert(attributes[0].value == request.second && attributes[1].value == request.second);
-        assert(saves == previous_saves + 1); // Mirrored writes never persist again.
+        assert(attributes[0].value == request.second);
+        assert(saves == previous_saves + 1); // Diagnostic publication never persists again.
     }
     // Same-value, unrelated endpoint/cluster/attribute, POST and null input.
     reset(); auto value = esp_matter_bool(true);
     assert(send(2, false) == ESP_OK && saves == 0 && pending.empty());
+    // Old meter endpoint callbacks must no longer change the radio or NVS.
+    assert(attribute::get(1, 6, 0) == nullptr);
+    assert(attribute_update_cb(attribute::PRE_UPDATE, 1, 6, 0, &value, nullptr) == ESP_OK);
     assert(attribute_update_cb(attribute::PRE_UPDATE, 3, 6, 0, &value, nullptr) == ESP_OK);
     assert(attribute_update_cb(attribute::PRE_UPDATE, 2, 7, 0, &value, nullptr) == ESP_OK);
     assert(attribute_update_cb(attribute::PRE_UPDATE, 2, 6, 1, &value, nullptr) == ESP_OK);
@@ -141,21 +149,26 @@ int main() {
     // Failed persistence rejects the command before changing RF or attributes.
     fail_save = true;
     assert(send(2, true) == 88);
-    assert(!saved && !gpio_external && !attributes[1].value && pending.empty());
+    assert(!saved && !gpio_external && !attributes[0].value && pending.empty());
     // Failed GPIO restores the previous saved selection and rejects the command.
     reset(); fail_gpio = true;
-    assert(send(1, true) == 99);
+    assert(send(2, true) == 99);
     assert(!saved && !g_external_antenna && !attributes[0].value && saves == 2 && pending.empty());
     // Startup and BOOT/USB recovery: stale Matter Off must not overwrite a
-    // saved external antenna; sync both attributes before enabling commands.
+    // saved external antenna; sync the switch and read-only meter diagnostic.
     reset(true); g_antenna_controls_ready = false;
-    attributes[0].value = attributes[1].value = false;
+    attributes[0].value = false;
     assert(send(2, false) == ESP_OK && saved && g_external_antenna && saves == 0);
     initialize_antenna_controls(0); flush();
-    assert(g_antenna_controls_ready && attributes[0].value && attributes[1].value && diagnostic);
+    assert(g_antenna_controls_ready && attributes[0].value && diagnostic);
     assert(saves == 0 && gpio_writes == 0);
     assert(send(2, false) == ESP_OK); flush();
-    assert(!saved && !g_external_antenna && !attributes[0].value && !attributes[1].value);
+    assert(!saved && !g_external_antenna && !attributes[0].value && !diagnostic);
+    // Publishing before endpoint creation must still publish the diagnostic
+    // without trying to access an invalid or old switch endpoint.
+    reset(true); g_antenna_endpoint_id = kInvalidEndpointId;
+    diagnostic = false; publish_antenna_diagnostic(0);
+    assert(diagnostic && saves == 0 && gpio_writes == 0);
 }
 '''.replace("__CALLBACKS__", callbacks)
         with tempfile.TemporaryDirectory() as directory:

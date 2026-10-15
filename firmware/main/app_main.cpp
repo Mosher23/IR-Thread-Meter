@@ -47,28 +47,22 @@ std::atomic<bool> g_energy_initialized{false};
 
 void publish_antenna_diagnostic(intptr_t)
 {
-    // The old meter control remains an alias for existing HA installations.
-    // Mirror the authoritative board setting to both endpoints. These updates
-    // re-enter PRE_UPDATE, where an unchanged choice is a no-op (no NVS writes
-    // or further scheduled work).
-    for (uint16_t endpoint_id : {g_meter_endpoint_id, g_antenna_endpoint_id}) {
-        if (endpoint_id == kInvalidEndpointId) {
-            continue;
-        }
-        attribute_t *on_off = attribute::get(endpoint_id, OnOff::Id,
+    // Only endpoint 2 is a switch. The meter retains its read-only antenna
+    // diagnostic, but no longer advertises a duplicate On/Off cluster.
+    // An unchanged value is a no-op in PRE_UPDATE (no extra NVS writes).
+    if (g_antenna_endpoint_id != kInvalidEndpointId) {
+        attribute_t *on_off = attribute::get(g_antenna_endpoint_id, OnOff::Id,
                                             OnOff::Attributes::OnOff::Id);
         esp_matter_attr_val_t current = esp_matter_invalid(nullptr);
         if (on_off == nullptr || attribute::get_val(on_off, &current) != ESP_OK) {
-            ESP_LOGE(TAG, "Could not read antenna switch on endpoint %u", endpoint_id);
-            continue;
-        }
-        if (current.val.b != g_external_antenna) {
+            ESP_LOGE(TAG, "Could not read antenna switch on endpoint %u", g_antenna_endpoint_id);
+        } else if (current.val.b != g_external_antenna) {
             esp_matter_attr_val_t state = esp_matter_bool(g_external_antenna);
             const esp_err_t error = attribute::update(
-                endpoint_id, OnOff::Id, OnOff::Attributes::OnOff::Id, &state);
+                g_antenna_endpoint_id, OnOff::Id, OnOff::Attributes::OnOff::Id, &state);
             if (error != ESP_OK) {
                 ESP_LOGE(TAG, "Could not synchronize antenna switch %u: %s",
-                         endpoint_id, esp_err_to_name(error));
+                         g_antenna_endpoint_id, esp_err_to_name(error));
             }
         }
     }
@@ -94,7 +88,7 @@ esp_err_t attribute_update_cb(attribute::callback_type_t type, uint16_t endpoint
                               esp_matter_attr_val_t *value, void *)
 {
     if (type != attribute::PRE_UPDATE ||
-        (endpoint_id != g_meter_endpoint_id && endpoint_id != g_antenna_endpoint_id) ||
+        endpoint_id != g_antenna_endpoint_id ||
         cluster_id != OnOff::Id || attribute_id != OnOff::Attributes::OnOff::Id) {
         return ESP_OK;
     }
@@ -414,22 +408,7 @@ extern "C" void app_main()
     }
 
     // On means external U.FL antenna, Off means internal ceramic antenna.
-    // Keep this legacy alias so HA entity IDs, automations and companion
-    // diagnostics continue working after OTA. Apple Home discovers the
-    // separate standard device endpoint below instead of this extra cluster.
-    cluster::on_off::config_t antenna_config = {};
-    antenna_config.on_off = g_external_antenna;
-    cluster_t *antenna_cluster = cluster::on_off::create(
-        meter_endpoint, &antenna_config, CLUSTER_FLAG_SERVER);
-    // The pinned ESP-Matter legacy cluster helper registers Off only. HA
-    // sends On (command 0x01) when selecting the external antenna; without
-    // explicitly advertising it, Matter rejects the request with 0x81.
-    if (antenna_cluster == nullptr ||
-        cluster::on_off::command::create_on(antenna_cluster) == nullptr) {
-        ESP_LOGE(TAG, "Failed to create Matter antenna switch");
-        abort();
-    }
-
+    // Do not add an On/Off cluster to the meter: this is the sole RF control.
     // A controllable plug-in unit (0x010A), NOT Generic Switch (a physical
     // button/event source), maps to an Apple Home on/off accessory. Create it
     // after the meter so the existing meter endpoint ID never shifts.
@@ -440,7 +419,7 @@ extern "C" void app_main()
     endpoint_t *antenna_endpoint = endpoint::on_off_plug_in_unit::create(
         node, &external_antenna_config, ENDPOINT_FLAG_NONE, nullptr);
     if (antenna_endpoint == nullptr) {
-        ESP_LOGE(TAG, "Failed to create External Antenna endpoint");
+        ESP_LOGE(TAG, "Failed to create External antenna endpoint");
         abort();
     }
     g_antenna_endpoint_id = endpoint::get_id(antenna_endpoint);
@@ -450,12 +429,12 @@ extern "C" void app_main()
     cluster::fixed_label::config_t label_config = {};
     if (cluster::fixed_label::create(antenna_endpoint, &label_config,
                                      CLUSTER_FLAG_SERVER) == nullptr) {
-        ESP_LOGE(TAG, "Failed to create External Antenna label");
+        ESP_LOGE(TAG, "Failed to create External antenna label");
         abort();
     }
     static AntennaLabelProvider label_provider(g_antenna_endpoint_id);
     set_custom_device_info_provider(&label_provider);
-    ESP_LOGI(TAG, "External Antenna control endpoint=%u (On=external, Off=internal)",
+    ESP_LOGI(TAG, "External antenna control endpoint=%u (On=external, Off=internal)",
              g_antenna_endpoint_id);
 
     cluster::keypad_input::config_t keypad_config;

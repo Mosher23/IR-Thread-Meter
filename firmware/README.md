@@ -14,7 +14,7 @@ over the ESP32-C6's built-in Thread radio.
 - Manufacturer: `SimpleIdeas`
 - Product and commissionable name: `IR Power Meter`
 - Development VID/PID: `0xFFF1` / `0x8000`
-- Software version: `14` (`1.13`)
+- Software version: `15` (`1.14`)
 - Hardware version: `1` (`1.0`)
 - Development serial number: `00000001`
 - ESP-IDF project name: `IR_Meter_Thread_Matter`
@@ -139,17 +139,25 @@ the radio. Both variants drive GPIO3 low before configuring GPIO14. The
 internal build drives GPIO14 low for ceramic; the external build drives it high
 for U.FL/IPEX, following the
 [official Seeed RF-switch sequence](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/#hardware-overview).
-Starting with firmware **1.13**, **External Antenna** also has a separate
+Starting with firmware **1.13**, the antenna has a separate
 Matter **On/Off Plug-in Unit** endpoint (device type `0x010A`), normally
 endpoint 2. This gives Apple Home a supported controllable accessory instead
 of relying on an extra cluster on the Electrical Meter endpoint. It may appear
-with an outlet icon or a generic name; rename that control **External Antenna**
+with an outlet icon or a generic name; rename that control **External antenna**
 in Home if needed. The firmware supplies a Fixed Label with that name, but
 controllers decide whether to use it.
 
-**Off = internal, On = external.** The original meter endpoint (normally 1)
-and its On/Off control remain unchanged for existing HA entities, automations
-and companion diagnostics. Both controls mirror the same saved choice. A
+Firmware **1.14** removes the duplicate On/Off cluster from meter endpoint 1.
+Endpoint 1 still provides Power, Energy, PIN commands and read-only diagnostics;
+endpoint 2 is the **only** antenna switch and keeps its existing endpoint ID.
+Its Fixed Label is **External antenna**; controllers may still use a generic
+display name, which can be renamed in their UI without changing its entity ID.
+Existing automations referencing the old endpoint-1 switch must be updated to
+the endpoint-2 switch. HA may retain an unavailable registry entry for the old
+switch after rediscovery; disable that old entry rather than resetting the board.
+
+**Off = internal, On = external.** The companion's read-only antenna diagnostic
+remains on endpoint 1 and reflects the same saved choice. A
 Matter controller can change the antenna without reflashing; the selection is saved in
 `board_cfg` and the GPIO14 RF switch changes immediately. On an uninitialized
 board, the internal USB build remains the default. Existing external-antenna
