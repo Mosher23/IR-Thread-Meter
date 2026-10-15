@@ -49,6 +49,15 @@ def package(source: Path, output: Path):
                 raise ValueError("USB bootstrap must allow initial board configuration")
         if any(value not in sdk for value in expected):
             raise ValueError(f"Incorrect {variant} build flags")
+        # The board provisioning tool relies on the SDK's legacy providers
+        # reading chip-factory before their compile-time test defaults.
+        provisioning_flags = (
+            '#define CONFIG_CHIP_FACTORY_NAMESPACE_PARTITION_LABEL "nvs"',
+            '#define CONFIG_EXAMPLE_COMMISSIONABLE_DATA_PROVIDER 1',
+            '#define CONFIG_EXAMPLE_DEVICE_INSTANCE_INFO_PROVIDER 1',
+        )
+        if any(flag not in sdk for flag in provisioning_flags) or "#define CONFIG_NVS_ENCRYPTION 1" in sdk:
+            raise ValueError(f"{variant} changed the provisioning provider; update the board flasher schema")
         description = json.loads((build / "project_description.json").read_text())
         if description["project_version"] != string:
             raise ValueError(f"Stale {variant} build")
@@ -98,6 +107,10 @@ def package(source: Path, output: Path):
 
 def finish(output, manifest):
     (output / "ota-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    provisioning = {"schema": 1, "chip": "esp32c6", "partition": "nvs",
+                    "namespace": "chip-factory", "provider": "esp32-legacy",
+                    "version_string": manifest["version_string"]}
+    (output / "provisioning.json").write_text(json.dumps(provisioning, indent=2) + "\n")
     shutil.copyfile(ROOT / "scripts/flash.py", output / "flash.py")
     checksums = [f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}"
                  for path in sorted(output.iterdir()) if path.is_file()]

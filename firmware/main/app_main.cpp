@@ -19,6 +19,7 @@
 #include <freertos/task.h>
 #include <nvs_flash.h>
 #include <platform/CHIPDeviceLayer.h>
+#include <platform/ESP32/StaticESP32DeviceInfoProvider.h>
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
 #include <platform/ESP32/OpenthreadLauncher.h>
 #endif
@@ -38,11 +39,38 @@ constexpr char TAG[] = "matter_smartmeter";
 SmartMeterPowerDelegate g_power_delegate;
 MeterPinDelegate g_pin_delegate;
 uint16_t g_meter_endpoint_id = 0;
+uint16_t g_antenna_endpoint_id = kInvalidEndpointId;
 bool g_external_antenna = false;
+bool g_antenna_controls_ready = false;
 std::atomic<bool> g_energy_initialized{false};
 
 void publish_antenna_diagnostic(intptr_t)
 {
+    // The old meter control remains an alias for existing HA installations.
+    // Mirror the authoritative board setting to both endpoints. These updates
+    // re-enter PRE_UPDATE, where an unchanged choice is a no-op (no NVS writes
+    // or further scheduled work).
+    for (uint16_t endpoint_id : {g_meter_endpoint_id, g_antenna_endpoint_id}) {
+        if (endpoint_id == kInvalidEndpointId) {
+            continue;
+        }
+        attribute_t *on_off = attribute::get(endpoint_id, OnOff::Id,
+                                            OnOff::Attributes::OnOff::Id);
+        esp_matter_attr_val_t current = esp_matter_invalid(nullptr);
+        if (on_off == nullptr || attribute::get_val(on_off, &current) != ESP_OK) {
+            ESP_LOGE(TAG, "Could not read antenna switch on endpoint %u", endpoint_id);
+            continue;
+        }
+        if (current.val.b != g_external_antenna) {
+            esp_matter_attr_val_t state = esp_matter_bool(g_external_antenna);
+            const esp_err_t error = attribute::update(
+                endpoint_id, OnOff::Id, OnOff::Attributes::OnOff::Id, &state);
+            if (error != ESP_OK) {
+                ESP_LOGE(TAG, "Could not synchronize antenna switch %u: %s",
+                         endpoint_id, esp_err_to_name(error));
+            }
+        }
+    }
     esp_matter_attr_val_t value = esp_matter_bool(g_external_antenna);
     const esp_err_t error = attribute::update(
         g_meter_endpoint_id, kSmartMeterDiagnosticsClusterId,
@@ -52,16 +80,28 @@ void publish_antenna_diagnostic(intptr_t)
     }
 }
 
+void initialize_antenna_controls(intptr_t)
+{
+    // Matter may restore old OnOff/StartUpOnOff values during cluster startup.
+    // board_cfg (including USB/BOOT recovery choices) must remain authoritative.
+    publish_antenna_diagnostic(0);
+    g_antenna_controls_ready = true;
+}
+
 esp_err_t attribute_update_cb(attribute::callback_type_t type, uint16_t endpoint_id,
                               uint32_t cluster_id, uint32_t attribute_id,
                               esp_matter_attr_val_t *value, void *)
 {
-    if (type != attribute::PRE_UPDATE || endpoint_id != g_meter_endpoint_id ||
+    if (type != attribute::PRE_UPDATE ||
+        (endpoint_id != g_meter_endpoint_id && endpoint_id != g_antenna_endpoint_id) ||
         cluster_id != OnOff::Id || attribute_id != OnOff::Attributes::OnOff::Id) {
         return ESP_OK;
     }
     if (value == nullptr) {
         return ESP_ERR_INVALID_ARG;
+    }
+    if (!g_antenna_controls_ready) {
+        return ESP_OK;
     }
 
     const bool external = value->val.b;
@@ -373,8 +413,9 @@ extern "C" void app_main()
     }
 
     // On means external U.FL antenna, Off means internal ceramic antenna.
-    // The OnOff cluster is on the existing meter endpoint so commissioning and
-    // the meter's endpoint ID stay unchanged across an OTA update.
+    // Keep this legacy alias so HA entity IDs, automations and companion
+    // diagnostics continue working after OTA. Apple Home discovers the
+    // separate standard device endpoint below instead of this extra cluster.
     cluster::on_off::config_t antenna_config = {};
     antenna_config.on_off = g_external_antenna;
     cluster_t *antenna_cluster = cluster::on_off::create(
@@ -387,6 +428,45 @@ extern "C" void app_main()
         ESP_LOGE(TAG, "Failed to create Matter antenna switch");
         abort();
     }
+
+    // A controllable plug-in unit (0x010A), NOT Generic Switch (a physical
+    // button/event source), maps to an Apple Home on/off accessory. Create it
+    // after the meter so the existing meter endpoint ID never shifts.
+    endpoint::on_off_plug_in_unit::config_t external_antenna_config;
+    external_antenna_config.on_off.on_off = g_external_antenna;
+    // The SDK plug-in helper otherwise defaults to Off at every power-up.
+    external_antenna_config.on_off_lighting.start_up_on_off = nullable<uint8_t>();
+    endpoint_t *antenna_endpoint = endpoint::on_off_plug_in_unit::create(
+        node, &external_antenna_config, ENDPOINT_FLAG_NONE, nullptr);
+    if (antenna_endpoint == nullptr) {
+        ESP_LOGE(TAG, "Failed to create External Antenna endpoint");
+        abort();
+    }
+    g_antenna_endpoint_id = endpoint::get_id(antenna_endpoint);
+    // The standard endpoint helper installs Off, On and Toggle, along with
+    // Identify, Groups and Scenes. Fixed Label describes its purpose without
+    // falsely declaring this native endpoint to be a bridged device.
+    cluster::fixed_label::config_t label_config = {};
+    if (cluster::fixed_label::create(antenna_endpoint, &label_config,
+                                     CLUSTER_FLAG_SERVER) == nullptr) {
+        ESP_LOGE(TAG, "Failed to create External Antenna label");
+        abort();
+    }
+    using LabelProvider = DeviceLayer::StaticESP32DeviceInfoProvider;
+    static LabelProvider::FixedLabelEntry antenna_labels[] = {
+        {g_antenna_endpoint_id, CharSpan::fromCharString("name"),
+         CharSpan::fromCharString("External Antenna")},
+    };
+    auto &label_provider = LabelProvider::GetDefaultInstance();
+    const CHIP_ERROR label_error = label_provider.SetFixedLabels(Span(antenna_labels));
+    if (label_error != CHIP_NO_ERROR) {
+        ESP_LOGE(TAG, "Failed to configure External Antenna label: %" CHIP_ERROR_FORMAT,
+                 label_error.Format());
+        abort();
+    }
+    DeviceLayer::SetDeviceInfoProvider(&label_provider);
+    ESP_LOGI(TAG, "External Antenna control endpoint=%u (On=external, Off=internal)",
+             g_antenna_endpoint_id);
 
     cluster::keypad_input::config_t keypad_config;
     keypad_config.delegate = &g_pin_delegate;
@@ -416,6 +496,13 @@ extern "C" void app_main()
     }
 
     CHIP_ERROR schedule_error = DeviceLayer::PlatformMgr().ScheduleWork(
+        initialize_antenna_controls, 0);
+    if (schedule_error != CHIP_NO_ERROR) {
+        ESP_LOGE(TAG, "Failed to schedule antenna-control initialization: %" CHIP_ERROR_FORMAT,
+                 schedule_error.Format());
+        abort();
+    }
+    schedule_error = DeviceLayer::PlatformMgr().ScheduleWork(
         initialize_energy_cluster, static_cast<intptr_t>(g_meter_endpoint_id));
     if (schedule_error != CHIP_NO_ERROR) {
         ESP_LOGE(TAG, "Failed to schedule energy-cluster initialization: %" CHIP_ERROR_FORMAT,

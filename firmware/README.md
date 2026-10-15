@@ -14,7 +14,7 @@ over the ESP32-C6's built-in Thread radio.
 - Manufacturer: `SimpleIdeas`
 - Product and commissionable name: `IR Power Meter`
 - Development VID/PID: `0xFFF1` / `0x8000`
-- Software version: `13` (`1.12`)
+- Software version: `14` (`1.13`)
 - Hardware version: `1` (`1.0`)
 - Development serial number: `00000001`
 - ESP-IDF project name: `IR_Meter_Thread_Matter`
@@ -139,15 +139,37 @@ the radio. Both variants drive GPIO3 low before configuring GPIO14. The
 internal build drives GPIO14 low for ceramic; the external build drives it high
 for U.FL/IPEX, following the
 [official Seeed RF-switch sequence](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/#hardware-overview).
-The Matter meter endpoint also exposes a two-way On/Off antenna selector:
-Off = internal, On = external. A Matter controller
-can change the antenna without reflashing; the new selection is saved in
+Starting with firmware **1.13**, **External Antenna** also has a separate
+Matter **On/Off Plug-in Unit** endpoint (device type `0x010A`), normally
+endpoint 2. This gives Apple Home a supported controllable accessory instead
+of relying on an extra cluster on the Electrical Meter endpoint. It may appear
+with an outlet icon or a generic name; rename that control **External Antenna**
+in Home if needed. The firmware supplies a Fixed Label with that name, but
+controllers decide whether to use it.
+
+**Off = internal, On = external.** The original meter endpoint (normally 1)
+and its On/Off control remain unchanged for existing HA entities, automations
+and companion diagnostics. Both controls mirror the same saved choice. A
+Matter controller can change the antenna without reflashing; the selection is saved in
 `board_cfg` and the GPIO14 RF switch changes immediately. On an uninitialized
 board, the internal USB build remains the default. Existing external-antenna
 boards keep their saved selection through OTA. Connect the external antenna
 before switching to it, since a lost Thread connection prevents a remote
 reverse command. Three short BOOT taps toggle the saved
 antenna and restart the board without erasing Matter credentials.
+
+The new endpoint requires firmware 1.13 on the XIAO; updating only the HA
+companion cannot add it. After updating, let controllers rediscover the device.
+Use **Interview** in HA's Matter Server and reload the Matter integration if
+the new control is absent. Apple Home may cache the previous endpoint layout:
+restart the relevant home hub first. If it still does not discover the added
+accessory, remove and re-add the device **in Apple Home only**, using a new
+sharing code from an existing controller. This removes that Apple's pairing
+and may require restoring its room/automations. Do not factory-reset the XIAO
+or erase its other Matter fabrics just to refresh Apple Home.
+
+This endpoint layout still needs real-device Apple Home validation. A successful
+firmware compile is not proof that an already-paired Home will refresh its cache.
 
 To change pins, baud rate, or report intervals:
 
