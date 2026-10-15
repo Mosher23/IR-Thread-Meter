@@ -3,6 +3,7 @@
 #include "meter_pin_delegate.h"
 #include "smart_meter.h"
 #include "board_config.h"
+#include "antenna_label_provider.h"
 
 #include <app/server/CommissioningWindowManager.h>
 #include <app/server/Server.h>
@@ -15,11 +16,11 @@
 #include <esp_ota_ops.h>
 #include <esp_system.h>
 #include <esp_matter.h>
+#include <esp_matter_providers.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <nvs_flash.h>
 #include <platform/CHIPDeviceLayer.h>
-#include <platform/ESP32/StaticESP32DeviceInfoProvider.h>
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
 #include <platform/ESP32/OpenthreadLauncher.h>
 #endif
@@ -452,19 +453,8 @@ extern "C" void app_main()
         ESP_LOGE(TAG, "Failed to create External Antenna label");
         abort();
     }
-    using LabelProvider = DeviceLayer::StaticESP32DeviceInfoProvider;
-    static LabelProvider::FixedLabelEntry antenna_labels[] = {
-        {g_antenna_endpoint_id, CharSpan::fromCharString("name"),
-         CharSpan::fromCharString("External Antenna")},
-    };
-    auto &label_provider = LabelProvider::GetDefaultInstance();
-    const CHIP_ERROR label_error = label_provider.SetFixedLabels(Span(antenna_labels));
-    if (label_error != CHIP_NO_ERROR) {
-        ESP_LOGE(TAG, "Failed to configure External Antenna label: %" CHIP_ERROR_FORMAT,
-                 label_error.Format());
-        abort();
-    }
-    DeviceLayer::SetDeviceInfoProvider(&label_provider);
+    static AntennaLabelProvider label_provider(g_antenna_endpoint_id);
+    set_custom_device_info_provider(&label_provider);
     ESP_LOGI(TAG, "External Antenna control endpoint=%u (On=external, Off=internal)",
              g_antenna_endpoint_id);
 
