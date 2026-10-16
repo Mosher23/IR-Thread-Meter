@@ -1,14 +1,18 @@
-# IR Smart Meter — Matter over Thread
+# ⚡ IR Smart Meter — Matter over Thread
 
 Use a Seeed XIAO ESP32-C6 and an optical SML head to read an electricity meter
 over Matter/Thread. Home Assistant's built-in **Matter** integration shows
 Energy and Power. The optional **IR Smart Meter** companion adds diagnostics,
 optical PIN entry, and GitHub firmware updates.
 
+✅ **Tested with an EMH eHZB electricity meter.** Other meters need compatible
+SML output and OBIS values; optical PIN and display controls depend on the
+meter model. See the [supported readings](firmware/README.md#device-identity).
+
 > This is a development project, not a certified Matter product. It uses a
 > test certificate, development vendor ID, and sample serial number.
 
-## What you need
+## 🧰 What you need
 
 - A Seeed **XIAO ESP32-C6 with 4 MB flash**, a USB data cable, and stable power.
 - An electricity meter with **SML output** and a compatible **3.3 V UART** optical head.
@@ -21,7 +25,7 @@ PIN transmission, also connect **XIAO GPIO16 (D6/TX) → head RX**. A head
 powered from the XIAO's 5 V pin must still have a **3.3 V-safe UART output**.
 See [wiring details](firmware/README.md#hardware).
 
-## Setup
+## 🚀 Setup
 
 ### Flash the firmware
 
@@ -70,24 +74,32 @@ installation, copy `custom_components/smartmeter` to
 
 | Integration | Entities and controls |
 | --- | --- |
-| Home Assistant Matter | Native **Energy**, **Power**, and the antenna On/Off switch. |
+| Home Assistant Matter | Native **Energy**, **Power**, and a separate **External antenna** On/Off control. |
 | IR Smart Meter companion | **OBIS Received**, **Manufacturer**, **Meter ID**, and **Active antenna** diagnostics; **Meter PIN**, **Send PIN**, **Short light pulse**, **Long light pulse**, and **OTA Firmware**. |
 
 The companion uses your existing Matter device and does not create another
-Power sensor. No re-pairing is needed to add it.
+Power sensor. No re-pairing is needed to add it. Keep the companion updated
+through HACS; its version is independent of the XIAO firmware version.
 
-## Using the meter
+## 🎛️ Using the meter
 
 ### Select the antenna
 
-The Matter device exposes an On/Off switch on the meter endpoint. **Off means
-the built-in ceramic antenna; On means the external U.FL antenna.** Home
-Assistant currently names this generic On/Off entity after the whole device.
-Rename its **display name** to **External Antenna** in the HA entity settings so
-it is not mistaken for a switch that turns the meter on or off. This name is
-controlled by HA's Matter integration and cannot be forced by this firmware
-without also renaming the entire meter device. The companion's **Active antenna**
-diagnostic displays the actual selection.
+The firmware exposes one separate **External antenna** On/Off control
+(Matter endpoint 2). **Off means the built-in ceramic antenna; On means the
+external U.FL/IPEX antenna.** Power, Energy, PIN commands, and diagnostics
+remain on the meter endpoint.
+
+The antenna control uses Matter's plug-in unit device type, so a controller
+may display it as an outlet or give it a generic name. Rename that control
+**External antenna** in Home Assistant or Apple Home if needed. The firmware
+supplies this label, but each controller chooses its display name. The
+companion's **Active antenna** diagnostic displays the actual selection.
+
+If the control is missing in Home Assistant, run **Interview** in Matter
+Server and reload the **Matter** integration. Apple Home discovery and control
+of this endpoint still need confirmation on a physical device. See
+[antenna details](firmware/README.md#antenna-selection).
 
 The selection takes effect immediately and is saved across reboots, OTA, and
 Matter factory resets. Connect the external antenna *before* switching to it.
@@ -118,18 +130,18 @@ displayed meter menu item. On some screens it can toggle InF or erase
 historical readings. Do not press it on an E CLr or HIS CLr confirmation
 screen unless you intend to clear those values.
 
-## Firmware updates
+## 🔄 Firmware updates
 
 Open the companion device's **OTA Firmware** entity in Home Assistant.
 Click **Install** when a compatible newer release appears. The image is
-downloaded from GitHub, validated, transferred
-via Matter Server, and followed by a XIAO reboot. **Updates never install
+downloaded from GitHub, validated, transferred via Matter Server, and followed
+by a XIAO reboot. **Updates never install
 automatically.** Keep power and Thread connectivity stable. The separate
 native Matter **Firmware** entity may show different update information; use
 **OTA Firmware** for this repository's releases.
 See the [USB and OTA guide](BOOTSTRAP_AND_OTA.md#update-over-thread).
 
-## Troubleshooting
+## 🛠️ Troubleshooting
 
 | Symptom | First check |
 | --- | --- |
@@ -139,8 +151,9 @@ See the [USB and OTA guide](BOOTSTRAP_AND_OTA.md#update-over-thread).
 | Sending a PIN does not change the meter display | Check GPIO16 → head RX, transmit support, and optical control-point alignment. |
 | OTA Firmware offers no update | Check `compatibility_issue` and `last_error` in Developer tools → States. The GitHub check runs every six hours; refresh the entity to check sooner. |
 | Device disconnects after changing the antenna | Check that the selected antenna is attached. Tap BOOT three times while running to toggle to the other antenna, or select one with `antenna internal` / `antenna external` in the USB console. |
+| External antenna control is missing in HA | Run **Interview** in Matter Server, then reload **Matter**. The control is a separate endpoint and may appear as an outlet. |
 
-## More information
+## 📚 More information
 
 - [USB flashing, OTA, and release publishing](BOOTSTRAP_AND_OTA.md)
 - [Firmware build, wiring, OBIS mapping, and commissioning](firmware/README.md)
@@ -148,3 +161,11 @@ See the [USB and OTA guide](BOOTSTRAP_AND_OTA.md#update-over-thread).
 
 Release checksums guard against accidental corruption; this test-device setup
 does not provide production signing, secure boot, or production Matter attestation.
+
+## 💛 Sponsor this project
+
+If this project helps you, you can support its development. Thank you! ☕
+
+- [Ko-fi](https://ko-fi.com/mosher23)
+- [Buy Me a Coffee](https://buymeacoffee.com/sergiit)
+- [PayPal](https://paypal.me/mosher88)

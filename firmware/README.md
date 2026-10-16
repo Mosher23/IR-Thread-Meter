@@ -123,6 +123,8 @@ dedicated to the IR reader.
 The clean reference build completed successfully with a binary size of
 approximately `0x19ed70` bytes and 14% free in the smallest application partition.
 
+## Antenna selection
+
 Two antenna variants can be built independently:
 
 ```bash
@@ -139,22 +141,16 @@ the radio. Both variants drive GPIO3 low before configuring GPIO14. The
 internal build drives GPIO14 low for ceramic; the external build drives it high
 for U.FL/IPEX, following the
 [official Seeed RF-switch sequence](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/#hardware-overview).
-Starting with firmware **1.13**, the antenna has a separate
-Matter **On/Off Plug-in Unit** endpoint (device type `0x010A`), normally
-endpoint 2. This gives Apple Home a supported controllable accessory instead
-of relying on an extra cluster on the Electrical Meter endpoint. It may appear
+The antenna has a separate Matter **On/Off Plug-in Unit** endpoint
+(device type `0x010A`), normally endpoint 2. It may appear
 with an outlet icon or a generic name; rename that control **External antenna**
 in Home if needed. The firmware supplies a Fixed Label with that name, but
 controllers decide whether to use it.
 
-Firmware **1.14** removes the duplicate On/Off cluster from meter endpoint 1.
-Endpoint 1 still provides Power, Energy, PIN commands and read-only diagnostics;
-endpoint 2 is the **only** antenna switch and keeps its existing endpoint ID.
+Endpoint 1 provides Power, Energy, PIN commands and read-only diagnostics;
+endpoint 2 is the **only** antenna switch.
 Its Fixed Label is **External antenna**; controllers may still use a generic
 display name, which can be renamed in their UI without changing its entity ID.
-Existing automations referencing the old endpoint-1 switch must be updated to
-the endpoint-2 switch. HA may retain an unavailable registry entry for the old
-switch after rediscovery; disable that old entry rather than resetting the board.
 
 **Off = internal, On = external.** The companion's read-only antenna diagnostic
 remains on endpoint 1 and reflects the same saved choice. A
@@ -166,15 +162,10 @@ before switching to it, since a lost Thread connection prevents a remote
 reverse command. Three short BOOT taps toggle the saved
 antenna and restart the board without erasing Matter credentials.
 
-The new endpoint requires firmware 1.13 on the XIAO; updating only the HA
-companion cannot add it. After updating, let controllers rediscover the device.
-Use **Interview** in HA's Matter Server and reload the Matter integration if
-the new control is absent. Apple Home may cache the previous endpoint layout:
-restart the relevant home hub first. If it still does not discover the added
-accessory, remove and re-add the device **in Apple Home only**, using a new
-sharing code from an existing controller. This removes that Apple's pairing
-and may require restoring its room/automations. Do not factory-reset the XIAO
-or erase its other Matter fabrics just to refresh Apple Home.
+If the control is absent, use **Interview** in HA's Matter Server and reload
+the Matter integration. In Apple Home, restart the relevant home hub and check
+for an outlet accessory. Do not factory-reset the XIAO or erase its Matter
+fabrics just to refresh a controller.
 
 This endpoint layout still needs real-device Apple Home validation. A successful
 firmware compile is not proof that an already-paired Home will refresh its cache.

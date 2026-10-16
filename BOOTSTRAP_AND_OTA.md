@@ -65,14 +65,11 @@ disconnects Thread, use the XIAO's USB serial console command
 three times while the firmware is running. A Matter
 factory reset does not change the saved antenna setting.
 
-Firmware **1.13** adds a separate **External antenna** on/off accessory using
-Apple Home's supported outlet device type. On means external, Off means internal.
-Firmware **1.14** removes the old duplicate control on the meter endpoint;
-only the separate antenna switch on endpoint 2 remains. Meter measurements and
-read-only antenna diagnostics are unchanged. Update any automations that used
-the old switch to use endpoint 2 instead.
-Apple Home may use an outlet icon and require renaming or rediscovery after
-an OTA update. See [antenna control and rediscovery](firmware/README.md#build)
+The separate **External antenna** On/Off control is on Matter endpoint 2 and
+uses the plug-in unit device type. On means external, Off means internal.
+Controllers may display it with an outlet icon or a generic name. Meter
+measurements, PIN commands, and read-only diagnostics remain on endpoint 1.
+See [antenna control and discovery](firmware/README.md#antenna-selection)
 for details. Connect an external antenna before selecting it.
 
 After reboot, [add the meter to Matter](README.md#add-the-meter-to-matter)
@@ -124,7 +121,7 @@ text version markers together in `firmware/main/MatterProjConfig.h`,
 `firmware/CMakeLists.txt`, and `firmware/sdkconfig.defaults` as appropriate.
 
 Push tested source, then publish a stable GitHub release whose tag matches
-the firmware string version (for example, `v1.12`). GitHub Actions builds
+the firmware string version (for example, `v1.14`). GitHub Actions builds
 the pinned SDK, runs tests, checks the tag, and attaches individual assets
 with `ota-manifest.json` **last**. Do not replace published assets or reuse
 a Matter numeric software version. Test an image on an accessible meter
