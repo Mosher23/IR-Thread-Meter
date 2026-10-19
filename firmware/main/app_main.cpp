@@ -4,6 +4,7 @@
 #include "smart_meter.h"
 #include "board_config.h"
 #include "antenna_label_provider.h"
+#include "meter_power_topology.h"
 
 #include <app/server/CommissioningWindowManager.h>
 #include <app/server/Server.h>
@@ -39,6 +40,7 @@ constexpr char TAG[] = "matter_smartmeter";
 
 SmartMeterPowerDelegate g_power_delegate;
 MeterPinDelegate g_pin_delegate;
+MeterPowerTopologyDelegate g_power_topology_delegate;
 uint16_t g_meter_endpoint_id = 0;
 uint16_t g_antenna_endpoint_id = kInvalidEndpointId;
 bool g_external_antenna = false;
@@ -423,6 +425,24 @@ extern "C" void app_main()
         abort();
     }
     g_antenna_endpoint_id = endpoint::get_id(antenna_endpoint);
+
+    // Describe the existing measurement endpoint as an Electrical Sensor and
+    // explicitly associate it with the controllable outlet. Keep a single EPM
+    // and EEM instance on endpoint 1 so existing HA readings retain their paths
+    // and controllers do not count duplicate energy measurements. Calling
+    // electrical_sensor::add() here would also recreate those two clusters.
+    ESP_ERROR_CHECK(endpoint::add_device_type(
+        meter_endpoint, endpoint::electrical_sensor::get_device_type_id(),
+        endpoint::electrical_sensor::get_device_type_version()));
+    g_power_topology_delegate.SetOutletEndpoint(g_antenna_endpoint_id);
+    cluster::power_topology::config_t topology_config;
+    topology_config.delegate = &g_power_topology_delegate;
+    topology_config.feature_flags = cluster::power_topology::feature::set_topology::get_id();
+    if (cluster::power_topology::create(meter_endpoint, &topology_config,
+                                      CLUSTER_FLAG_SERVER) == nullptr) {
+        ESP_LOGE(TAG, "Failed to associate meter readings with the outlet");
+        abort();
+    }
     // The standard endpoint helper installs Off, On and Toggle, along with
     // Identify, Groups and Scenes. Fixed Label describes its purpose without
     // falsely declaring this native endpoint to be a bridged device.
@@ -436,6 +456,8 @@ extern "C" void app_main()
     set_custom_device_info_provider(&label_provider);
     ESP_LOGI(TAG, "External antenna control endpoint=%u (On=external, Off=internal)",
              g_antenna_endpoint_id);
+    ESP_LOGI(TAG, "Meter readings on endpoint %u are associated with outlet %u",
+             g_meter_endpoint_id, g_antenna_endpoint_id);
 
     cluster::keypad_input::config_t keypad_config;
     keypad_config.delegate = &g_pin_delegate;

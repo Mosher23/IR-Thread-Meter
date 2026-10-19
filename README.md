@@ -74,7 +74,7 @@ installation, copy `custom_components/smartmeter` to
 
 | Integration | Entities and controls |
 | --- | --- |
-| Home Assistant Matter | Native **Energy**, **Power**, and a separate **External antenna** On/Off control. |
+| Home Assistant Matter | Native **Energy**, **Power**, and the **Smart Meter** outlet control for external-antenna selection. |
 | IR Smart Meter companion | **OBIS Received**, **Manufacturer**, **Meter ID**, and **Active antenna** diagnostics; **Meter PIN**, **Send PIN**, **Short light pulse**, **Long light pulse**, and **OTA Firmware**. |
 
 The companion uses your existing Matter device and does not create another
@@ -85,21 +85,25 @@ through HACS; its version is independent of the XIAO firmware version.
 
 ### Select the antenna
 
-The firmware exposes one separate **External antenna** On/Off control
+The firmware exposes one **Smart Meter** outlet control
 (Matter endpoint 2). **Off means the built-in ceramic antenna; On means the
 external U.FL/IPEX antenna.** Power, Energy, PIN commands, and diagnostics
 remain on the meter endpoint.
 
 The antenna control uses Matter's plug-in unit device type, so a controller
 may display it as an outlet or give it a generic name. Rename that control
-**External antenna** in Home Assistant or Apple Home if needed. The firmware
+**Smart Meter** in Home Assistant or Apple Home if needed. The firmware
 supplies this label, but each controller chooses its display name. The
 companion's **Active antenna** diagnostic displays the actual selection.
 
 If the control is missing in Home Assistant, run **Interview** in Matter
-Server and reload the **Matter** integration. Apple Home discovery and control
-of this endpoint still need confirmation on a physical device. See
-[antenna details](firmware/README.md#antenna-selection).
+Server and reload the **Matter** integration. The development candidate
+associates the existing power and energy readings with this outlet using
+Matter Power Topology. The Apple Home tile target is **Smart Meter — On · 220 W**
+or **Off · 220 W** (example reading), where On/Off refers only to the external antenna. Readings
+continue with either antenna. Apple's combined tile display still needs
+confirmation on a physical device; see the [candidate test guide](docs/APPLE_HOME_TESTING.md)
+and [antenna details](firmware/README.md#antenna-selection).
 
 The selection takes effect immediately and is saved across reboots, OTA, and
 Matter factory resets. Connect the external antenna *before* switching to it.

@@ -18,7 +18,7 @@ class AntennaEndpointTests(unittest.TestCase):
         self.assertIn("external_antenna_config.on_off.on_off = g_external_antenna", source)
         self.assertIn("on_off_lighting.start_up_on_off = nullable<uint8_t>()", source)
         provider = (ROOT / "firmware/main/antenna_label_provider.h").read_text()
-        self.assertIn('CharSpan::fromCharString("External antenna")', provider)
+        self.assertIn('CharSpan::fromCharString("Smart Meter")', provider)
         self.assertIn("static AntennaLabelProvider label_provider(g_antenna_endpoint_id)", source)
         self.assertIn("set_custom_device_info_provider(&label_provider)", source)
         defaults = (ROOT / "firmware/sdkconfig.defaults").read_text()

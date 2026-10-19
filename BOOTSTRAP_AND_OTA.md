@@ -65,10 +65,14 @@ disconnects Thread, use the XIAO's USB serial console command
 three times while the firmware is running. A Matter
 factory reset does not change the saved antenna setting.
 
-The separate **External antenna** On/Off control is on Matter endpoint 2 and
+The **Smart Meter** outlet control is on Matter endpoint 2 and
 uses the plug-in unit device type. On means external, Off means internal.
 Controllers may display it with an outlet icon or a generic name. Meter
 measurements, PIN commands, and read-only diagnostics remain on endpoint 1.
+The development candidate adds an Electrical Sensor device type and a static
+Power Topology association on endpoint 1, pointing to endpoint 2. It does not
+duplicate or relocate the power and energy readings. See the
+[Apple Home candidate test guide](docs/APPLE_HOME_TESTING.md) before installation.
 See [antenna control and discovery](firmware/README.md#antenna-selection)
 for details. Connect an external antenna before selecting it.
 
@@ -121,7 +125,7 @@ text version markers together in `firmware/main/MatterProjConfig.h`,
 `firmware/CMakeLists.txt`, and `firmware/sdkconfig.defaults` as appropriate.
 
 Push tested source, then publish a stable GitHub release whose tag matches
-the firmware string version (for example, `v1.14`). GitHub Actions builds
+the firmware string version (for example, `v1.15`). GitHub Actions builds
 the pinned SDK, runs tests, checks the tag, and attaches individual assets
 with `ota-manifest.json` **last**. Do not replace published assets or reuse
 a Matter numeric software version. Test an image on an accessible meter

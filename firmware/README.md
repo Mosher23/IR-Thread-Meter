@@ -14,7 +14,7 @@ over the ESP32-C6's built-in Thread radio.
 - Manufacturer: `SimpleIdeas`
 - Product and commissionable name: `IR Power Meter`
 - Development VID/PID: `0xFFF1` / `0x8000`
-- Software version: `15` (`1.14`)
+- Software version: `16` (`1.15` development candidate)
 - Hardware version: `1` (`1.0`)
 - Development serial number: `00000001`
 - ESP-IDF project name: `IR_Meter_Thread_Matter`
@@ -143,13 +143,13 @@ for U.FL/IPEX, following the
 [official Seeed RF-switch sequence](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/#hardware-overview).
 The antenna has a separate Matter **On/Off Plug-in Unit** endpoint
 (device type `0x010A`), normally endpoint 2. It may appear
-with an outlet icon or a generic name; rename that control **External antenna**
+with an outlet icon or a generic name; rename that control **Smart Meter**
 in Home if needed. The firmware supplies a Fixed Label with that name, but
 controllers decide whether to use it.
 
 Endpoint 1 provides Power, Energy, PIN commands and read-only diagnostics;
 endpoint 2 is the **only** antenna switch.
-Its Fixed Label is **External antenna**; controllers may still use a generic
+Its Fixed Label is **Smart Meter**; controllers may still use a generic
 display name, which can be renamed in their UI without changing its entity ID.
 
 **Off = internal, On = external.** The companion's read-only antenna diagnostic
@@ -169,6 +169,22 @@ fabrics just to refresh a controller.
 
 This endpoint layout still needs real-device Apple Home validation. A successful
 firmware compile is not proof that an already-paired Home will refresh its cache.
+
+The development candidate also advertises **Electrical Sensor** (`0x0510`)
+on endpoint 1. Its **Power Topology** (`0x009C`) server uses static SetTopology
+(`FeatureMap = 0x04`) and returns `[2]` from AvailableEndpoints. This associates
+the existing Electrical Power Measurement and Electrical Energy Measurement
+clusters with the outlet without adding another measurement instance. The
+association remains present whether OnOff is true or false: antenna selection
+does not control household consumption or SML reporting. DynamicPowerFlow is
+not enabled. Endpoint IDs, measurement attribute paths, PIN commands, and the
+read-only antenna diagnostic remain unchanged.
+
+The intended Apple Home outlet tile combines antenna On/Off state and live
+watts. Apple decides how to render this association; confirm its behavior with
+the [candidate test guide](../docs/APPLE_HOME_TESTING.md) before publishing a
+stable release. If Apple cannot associate the separate endpoints, a combined
+endpoint layout will need a separately tested change.
 
 To change pins, baud rate, or report intervals:
 
