@@ -1,8 +1,9 @@
-# Apple Home metering-outlet candidate
+# Apple Home metering-outlet verification
 
-Firmware **1.15**, Matter numeric software version **16**, is a development
-candidate. Its Apple Home tile behavior has not been verified on hardware.
-It is not a stable release and should be tested on one accessible meter first.
+Firmware **1.16**, Matter numeric software version **17**, changes the device
+classification and power topology after the 1.15 test still showed a generic
+meter tile without On/Off state or watts. The 1.16 tile behavior needs hardware
+verification. Test on one accessible meter first.
 
 ## Intended behavior
 
@@ -21,28 +22,40 @@ as "External" or "Internal".
 
 | Endpoint | Device types | Relevant servers |
 | --- | --- | --- |
-| 1 | Electrical Meter (`0x0514`), Electrical Sensor (`0x0510`) | Power (`0x0090`), energy (`0x0091`), Power Topology (`0x009C`), PIN input, vendor diagnostics |
+| 1 | Electrical Sensor (`0x0510`, utility) | Power (`0x0090`), energy (`0x0091`), Power Topology (`0x009C`), PIN input, vendor diagnostics |
 | 2 | On/Off Plug-in Unit (`0x010A`) | On/Off (`0x0006`), Fixed Label (`Smart Meter`) |
 
-Endpoint 1's Power Topology FeatureMap is `4` (SetTopology).
-AvailableEndpoints is `[2]`. There is no DynamicPowerFlow feature, so
-ActiveEndpoints is not advertised. There is one measurement source and one
-antenna switch. Existing Home Assistant measurement paths stay on endpoint 1.
+Endpoint 1's Power Topology FeatureMap is `1` (NodeTopology), describing
+whole-device measurements. AvailableEndpoints and ActiveEndpoints are absent.
+There is one measurement source and one antenna switch. The outlet is now the
+sole application device type; the additional Electrical Meter (`0x0514`) type
+is no longer advertised. Existing Home Assistant measurement paths stay on
+endpoint 1, and antenna control stays on endpoint 2.
+
+This uses the same application and utility device types and NodeTopology
+feature reported for the [IKEA GRILLPLATS plug](https://matter-survey.org/device/grillplats-plug-4476-4096).
+Endpoint numbers remain unchanged to preserve existing HA entities.
+The [Matter device library](https://csa-iot.org/wp-content/uploads/2024/05/matter-1-3-device-library-specification.pdf)
+defines Electrical Sensor as a utility device whose measurements follow its
+Power Topology cluster. Matching this model does not prove Apple Home rendering.
 
 ## Install and inspect
 
 1. Keep USB access to the XIAO and record its current firmware version. Keep a
    known-good firmware image available. Connect an external antenna before
    selecting it, and test where both antennas can reach Thread.
-2. Upload the candidate `IR_Power_Meter.ota` through Matter Server's local
-   firmware-update interface. The companion follows stable GitHub releases;
-   an unpublished candidate will not appear in its **OTA Firmware** entity.
-3. Confirm software version `16` / `1.15` after reboot and again after one
+2. Install `IR_Power_Meter.ota` using the companion's **OTA Firmware** entity
+   for a published latest release, or Matter Server's local firmware-update
+   interface for a candidate. The companion does not discover prereleases.
+3. Confirm software version `17` / `1.16` after reboot and again after one
    minute, to check that rollback has not restored the previous image.
 4. In Matter Server, run **Interview**, then reload Home Assistant's **Matter**
    integration. Inspect the device's endpoint/attribute data for the model
-   above. In particular, read `1/156/0` (AvailableEndpoints) and
-   `1/156/65532` (FeatureMap).
+   above. Verify `1/29/0` (DeviceTypeList) contains only Electrical Sensor,
+   `2/29/0` contains the outlet, and `1/156/65532` (FeatureMap) is `1`.
+   AvailableEndpoints and ActiveEndpoints must not be advertised by the topology
+   server. Confirm a non-null live `1/144/8` (ActivePower) reading independently
+   of the Apple Home tile.
 5. Allow Apple Home to refresh the accessory. Restart its active home hub if
    necessary and inspect the controllable outlet, naming it **Smart Meter**
    if its display name differs. Keep Matter pairings intact for this test.
@@ -65,5 +78,6 @@ or use `antenna internal` / `antenna external` on the USB console.
 
 Record Apple Home and home-hub OS versions, before/after screenshots, Matter
 endpoint data, and the results in both antenna states. A successful build and
-host tests do not establish these UI results. If watts still appear only in
-Energy, retain this evidence before trying a different endpoint layout.
+host tests do not establish these UI results. If the old generic tile remains,
+first determine whether Apple is still using the old Descriptor data. Do not
+remove its Matter fabric or reset the reader just to experiment with discovery.

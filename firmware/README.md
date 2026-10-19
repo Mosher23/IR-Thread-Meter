@@ -6,7 +6,7 @@ page contains the firmware and hardware details.
 
 This is an ESP32-C6 port of Claus Muus' `zigbee-smartmeter-reader`. It keeps the
 byte-oriented SML parser and default OBIS mapping, but replaces the Arduino
-Zigbee endpoint with a native ESP-IDF/ESP-Matter **Electrical Meter** endpoint
+Zigbee endpoint with a native ESP-IDF/ESP-Matter **Electrical Sensor** endpoint
 over the ESP32-C6's built-in Thread radio.
 
 ## Device identity
@@ -14,7 +14,7 @@ over the ESP32-C6's built-in Thread radio.
 - Manufacturer: `SimpleIdeas`
 - Product and commissionable name: `IR Power Meter`
 - Development VID/PID: `0xFFF1` / `0x8000`
-- Software version: `16` (`1.15` development candidate)
+- Software version: `17` (`1.16`)
 - Hardware version: `1` (`1.0`)
 - Development serial number: `00000001`
 - ESP-IDF project name: `IR_Meter_Thread_Matter`
@@ -170,21 +170,21 @@ fabrics just to refresh a controller.
 This endpoint layout still needs real-device Apple Home validation. A successful
 firmware compile is not proof that an already-paired Home will refresh its cache.
 
-The development candidate also advertises **Electrical Sensor** (`0x0510`)
-on endpoint 1. Its **Power Topology** (`0x009C`) server uses static SetTopology
-(`FeatureMap = 0x04`) and returns `[2]` from AvailableEndpoints. This associates
-the existing Electrical Power Measurement and Electrical Energy Measurement
-clusters with the outlet without adding another measurement instance. The
-association remains present whether OnOff is true or false: antenna selection
-does not control household consumption or SML reporting. DynamicPowerFlow is
-not enabled. Endpoint IDs, measurement attribute paths, PIN commands, and the
-read-only antenna diagnostic remain unchanged.
+Endpoint 1 advertises only **Electrical Sensor** (`0x0510`), a utility device
+with one Electrical Power Measurement and one Electrical Energy Measurement
+server. Its **Power Topology** (`0x009C`) uses NodeTopology (`FeatureMap = 1`)
+for whole-device measurements. It has no AvailableEndpoints or ActiveEndpoints
+attributes. Endpoint 2 is the sole application device, the antenna outlet.
+This follows the outlet-plus-utility-sensor model used by metering plugs,
+without declaring an additional Electrical Meter (`0x0514`) application device.
+Endpoint IDs, measurement paths, PIN commands, and the read-only antenna
+diagnostic remain unchanged. Antenna Off never zeros household power.
 
-The intended Apple Home outlet tile combines antenna On/Off state and live
-watts. Apple decides how to render this association; confirm its behavior with
-the [candidate test guide](../docs/APPLE_HOME_TESTING.md) before publishing a
-stable release. If Apple cannot associate the separate endpoints, a combined
-endpoint layout will need a separately tested change.
+The intended Apple Home tile combines antenna On/Off state and live watts.
+The 1.15 topology did not produce this tile on the paired test accessory.
+Version 1.16 changes device classification and power topology; its Apple Home
+rendering still needs hardware verification using the
+[test guide](../docs/APPLE_HOME_TESTING.md). Controllers can cache descriptors.
 
 To change pins, baud rate, or report intervals:
 

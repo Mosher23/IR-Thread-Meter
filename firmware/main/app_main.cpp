@@ -366,19 +366,27 @@ extern "C" void app_main()
         abort();
     }
 
-    endpoint::electrical_meter::config_t meter_config;
-    meter_config.electrical_power_measurement.delegate = &g_power_delegate;
-    meter_config.electrical_power_measurement.feature_flags =
+    // Electrical Sensor is a utility type, leaving the antenna outlet as the
+    // sole application device. Keep measurements on endpoint 1 for HA history.
+    endpoint::electrical_sensor::config_t meter_config;
+    auto &power_config = meter_config.with_electrical_power_measurement();
+    power_config.delegate = &g_power_delegate;
+    power_config.feature_flags =
         cluster::electrical_power_measurement::feature::alternating_current::get_id();
-    meter_config.electrical_energy_measurement.feature_flags =
+    meter_config.with_electrical_energy_measurement().feature_flags =
         cluster::electrical_energy_measurement::feature::imported_energy::get_id() |
         cluster::electrical_energy_measurement::feature::exported_energy::get_id() |
         cluster::electrical_energy_measurement::feature::cumulative_energy::get_id();
+    // Like a single metering plug, one sensor measures the whole device.
+    // No SetTopology endpoint mapping or OnOff-dependent energy flow.
+    meter_config.power_topology.delegate = &g_power_topology_delegate;
+    meter_config.power_topology.feature_flags =
+        cluster::power_topology::feature::node_topology::get_id();
 
     endpoint_t *meter_endpoint =
-        endpoint::electrical_meter::create(node, &meter_config, ENDPOINT_FLAG_NONE, nullptr);
+        endpoint::electrical_sensor::create(node, &meter_config, ENDPOINT_FLAG_NONE, nullptr);
     if (meter_endpoint == nullptr) {
-        ESP_LOGE(TAG, "Failed to create Matter Electrical Meter endpoint");
+        ESP_LOGE(TAG, "Failed to create Matter Electrical Sensor endpoint");
         abort();
     }
     g_meter_endpoint_id = endpoint::get_id(meter_endpoint);
@@ -426,23 +434,6 @@ extern "C" void app_main()
     }
     g_antenna_endpoint_id = endpoint::get_id(antenna_endpoint);
 
-    // Describe the existing measurement endpoint as an Electrical Sensor and
-    // explicitly associate it with the controllable outlet. Keep a single EPM
-    // and EEM instance on endpoint 1 so existing HA readings retain their paths
-    // and controllers do not count duplicate energy measurements. Calling
-    // electrical_sensor::add() here would also recreate those two clusters.
-    ESP_ERROR_CHECK(endpoint::add_device_type(
-        meter_endpoint, endpoint::electrical_sensor::get_device_type_id(),
-        endpoint::electrical_sensor::get_device_type_version()));
-    g_power_topology_delegate.SetOutletEndpoint(g_antenna_endpoint_id);
-    cluster::power_topology::config_t topology_config;
-    topology_config.delegate = &g_power_topology_delegate;
-    topology_config.feature_flags = cluster::power_topology::feature::set_topology::get_id();
-    if (cluster::power_topology::create(meter_endpoint, &topology_config,
-                                      CLUSTER_FLAG_SERVER) == nullptr) {
-        ESP_LOGE(TAG, "Failed to associate meter readings with the outlet");
-        abort();
-    }
     // The standard endpoint helper installs Off, On and Toggle, along with
     // Identify, Groups and Scenes. Fixed Label describes its purpose without
     // falsely declaring this native endpoint to be a bridged device.
@@ -456,7 +447,7 @@ extern "C" void app_main()
     set_custom_device_info_provider(&label_provider);
     ESP_LOGI(TAG, "External antenna control endpoint=%u (On=external, Off=internal)",
              g_antenna_endpoint_id);
-    ESP_LOGI(TAG, "Meter readings on endpoint %u are associated with outlet %u",
+    ESP_LOGI(TAG, "Whole-device meter readings on endpoint %u; sole application outlet %u",
              g_meter_endpoint_id, g_antenna_endpoint_id);
 
     cluster::keypad_input::config_t keypad_config;

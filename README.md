@@ -98,12 +98,12 @@ supplies this label, but each controller chooses its display name. The
 companion's **Active antenna** diagnostic displays the actual selection.
 
 If the control is missing in Home Assistant, run **Interview** in Matter
-Server and reload the **Matter** integration. The development candidate
-associates the existing power and energy readings with this outlet using
+Server and reload the **Matter** integration. Firmware 1.16 exposes the outlet
+as its sole application device, with an Electrical Sensor using whole-device
 Matter Power Topology. The Apple Home tile target is **Smart Meter — On · 220 W**
 or **Off · 220 W** (example reading), where On/Off refers only to the external antenna. Readings
 continue with either antenna. Apple's combined tile display still needs
-confirmation on a physical device; see the [candidate test guide](docs/APPLE_HOME_TESTING.md)
+confirmation on a physical device; see the [test guide](docs/APPLE_HOME_TESTING.md)
 and [antenna details](firmware/README.md#antenna-selection).
 
 The selection takes effect immediately and is saved across reboots, OTA, and
