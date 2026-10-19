@@ -29,8 +29,9 @@ See [wiring details](firmware/README.md#hardware).
 
 ### Flash the firmware
 
-[Download the latest firmware release](https://github.com/Mosher23/IR-Thread-Meter/releases/latest)
-and follow the [first-time USB flashing guide](BOOTSTRAP_AND_OTA.md#first-time-usb-flash).
+Follow the [first-time USB flashing guide](BOOTSTRAP_AND_OTA.md#first-time-usb-flash)
+and choose a [release with USB bootstrap files](https://github.com/Mosher23/IR-Thread-Meter/releases).
+OTA-only releases are for boards that have already been set up.
 Choose the internal antenna image, or the external image if an external
 antenna is attached.
 

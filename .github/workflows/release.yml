@@ -52,15 +52,13 @@ jobs:
           python scripts/checkout_submodules.py --shallow --platform esp32
           cd "$RUNNER_TEMP/esp-matter"
           ./install.sh --no-host-tool
-      - name: Build USB variants and universal OTA
+      - name: Build universal OTA only
         shell: bash
         run: |
           source "$RUNNER_TEMP/esp-idf/export.sh"
           source "$RUNNER_TEMP/esp-matter/export.sh"
-          bash scripts/build.sh internal
-          bash scripts/build.sh external
           bash scripts/build.sh ota
-          python scripts/package_release.py --output dist/release
+          python scripts/package_release.py --ota-only --output dist/release
       - name: Verify release tag
         if: github.event_name == 'release'
         env:

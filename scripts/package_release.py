@@ -23,12 +23,14 @@ sys.modules[spec.name] = ota
 spec.loader.exec_module(ota)
 
 
-def package(source: Path, output: Path):
+def package(source: Path, output: Path, *, ota_only=False):
     config = (source / "main/MatterProjConfig.h").read_text()
     version = int(re.search(r"#define CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION (\d+)", config)[1])
     string = re.search(r'#define CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING "([^"]+)"', config)[1]
     if version < ota.BOOTSTRAP_VERSION:
         raise ValueError("This packaging pipeline requires bootstrap v1.7 or later")
+    if ota_only and version == ota.BOOTSTRAP_VERSION:
+        raise ValueError("A USB-only firmware cannot be packaged as universal OTA")
     cmake = (source / "CMakeLists.txt").read_text()
     defaults = (source / "sdkconfig.defaults").read_text()
     if f'set(PROJECT_VER "{string}")' not in cmake or f"set(PROJECT_VER_NUMBER {version})" not in cmake or f"CONFIG_DEVICE_SOFTWARE_VERSION_NUMBER={version}\n" not in defaults:
@@ -36,7 +38,8 @@ def package(source: Path, output: Path):
     if output.exists() and any(output.iterdir()):
         raise ValueError("Output folder must be new or empty (do not replace an existing release)")
     output.mkdir(parents=True, exist_ok=True)
-    for variant in ("internal", "external", "ota"):
+    variants = ("ota",) if ota_only else ("internal", "external", "ota")
+    for variant in variants:
         build = source / f"build-{variant}"
         sdk = (build / "config/sdkconfig.h").read_text()
         expected = ["#define CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE 1",
@@ -102,16 +105,17 @@ def package(source: Path, output: Path):
                 "url": f"https://github.com/{ota.REPOSITORY}/releases/download/{tag}/{image.name}"}
     release = ota.parse_manifest(manifest, tag, {manifest["url"]})
     ota.validate_image(data, release)
-    finish(output, manifest)
+    finish(output, manifest, include_usb=not ota_only)
 
 
-def finish(output, manifest):
+def finish(output, manifest, *, include_usb=True):
     (output / "ota-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     provisioning = {"schema": 1, "chip": "esp32c6", "partition": "nvs",
                     "namespace": "chip-factory", "provider": "esp32-legacy",
                     "version_string": manifest["version_string"]}
     (output / "provisioning.json").write_text(json.dumps(provisioning, indent=2) + "\n")
-    shutil.copyfile(ROOT / "scripts/flash.py", output / "flash.py")
+    if include_usb:
+        shutil.copyfile(ROOT / "scripts/flash.py", output / "flash.py")
     checksums = [f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}"
                  for path in sorted(output.iterdir()) if path.is_file()]
     (output / "SHA256SUMS").write_text("\n".join(checksums) + "\n")
@@ -122,5 +126,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, default=ROOT / "firmware")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--ota-only", action="store_true",
+                        help="Package only the universal OTA build; no USB builds are required")
     args = parser.parse_args()
-    package(args.source.resolve(), args.output.resolve())
+    package(args.source.resolve(), args.output.resolve(), ota_only=args.ota_only)

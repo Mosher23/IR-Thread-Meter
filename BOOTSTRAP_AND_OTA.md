@@ -21,7 +21,9 @@ There are two separate installs:
 
 ## First-time USB flash
 
-Open the [latest GitHub release](https://github.com/Mosher23/IR-Thread-Meter/releases/latest).
+Open [GitHub releases](https://github.com/Mosher23/IR-Thread-Meter/releases)
+and choose a release containing the USB files below. OTA-only releases update
+boards that have already been set up and do not contain USB bootstrap files.
 Download these **individual files into one folder** (no ZIP archive):
 
 ```text
@@ -111,14 +113,13 @@ See [firmware build instructions](firmware/README.md#build). Apply
 to a fresh local SDK; CI applies it automatically.
 
 ```bash
-bash scripts/build.sh internal
-bash scripts/build.sh external
 bash scripts/build.sh ota
-python scripts/package_release.py --output dist/release
+python scripts/package_release.py --ota-only --output dist/release
 ```
 
-The internal/external builds are for first-time USB flashing. The universal
-OTA build requires an antenna choice already saved during initial setup;
+The release workflow builds and packages one universal OTA image. It does not
+compile the antenna-specific USB variants. The universal OTA build requires
+an antenna choice already saved during initial setup;
 that choice can subsequently be changed over Matter. The packaging
 script checks version consistency and image size. Increment numeric and
 text version markers together in `firmware/main/MatterProjConfig.h`,
