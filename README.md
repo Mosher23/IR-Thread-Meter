@@ -75,7 +75,7 @@ installation, copy `custom_components/smartmeter` to
 
 | Integration | Entities and controls |
 | --- | --- |
-| Home Assistant Matter | Native **Energy**, **Power**, and the **Smart Meter** outlet control for external-antenna selection. |
+| Home Assistant Matter | Native **Energy**, **Power**, and an independent **External antenna** on/off control. |
 | IR Smart Meter companion | **OBIS Received**, **Manufacturer**, **Meter ID**, and **Active antenna** diagnostics; **Meter PIN**, **Send PIN**, **Short light pulse**, **Long light pulse**, and **OTA Firmware**. |
 
 The companion uses your existing Matter device and does not create another
@@ -86,25 +86,29 @@ through HACS; its version is independent of the XIAO firmware version.
 
 ### Select the antenna
 
-The firmware exposes one **Smart Meter** outlet control
+The firmware exposes one **External antenna** control
 (Matter endpoint 2). **Off means the built-in ceramic antenna; On means the
 external U.FL/IPEX antenna.** Power, Energy, PIN commands, and diagnostics
 remain on the meter endpoint.
 
 The antenna control uses Matter's plug-in unit device type, so a controller
 may display it as an outlet or give it a generic name. Rename that control
-**Smart Meter** in Home Assistant or Apple Home if needed. The firmware
+**External antenna** in Home Assistant or Apple Home if needed. The firmware
 supplies this label, but each controller chooses its display name. The
 companion's **Active antenna** diagnostic displays the actual selection.
 
+Firmware **1.17** exposes an independent **Electrical Meter** on endpoint 1
+and the **External antenna** control on endpoint 2. Household power and energy
+are not associated with the antenna outlet. Switching antennas does not stop
+measurement or zero the readings. The antenna tile is intended to show only
+On/Off; power belongs to the meter's energy presentation, not that tile.
+
 If the control is missing in Home Assistant, run **Interview** in Matter
-Server and reload the **Matter** integration. Firmware 1.16 exposes the outlet
-as its sole application device, with an Electrical Sensor using whole-device
-Matter Power Topology. The Apple Home tile target is **Smart Meter — On · 220 W**
-or **Off · 220 W** (example reading), where On/Off refers only to the external antenna. Readings
-continue with either antenna. Apple's combined tile display still needs
-confirmation on a physical device; see the [test guide](docs/APPLE_HOME_TESTING.md)
-and [antenna details](firmware/README.md#antenna-selection).
+Server and reload the **Matter** integration. Apple Home can cache the device
+model, so verify that it has discovered the independent meter and antenna
+control. The restored model's energy totals still need physical verification;
+see the [test guide](docs/APPLE_HOME_TESTING.md) and
+[antenna details](firmware/README.md#antenna-selection).
 
 The selection takes effect immediately and is saved across reboots, OTA, and
 Matter factory resets. Connect the external antenna *before* switching to it.

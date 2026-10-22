@@ -4,7 +4,6 @@
 #include "smart_meter.h"
 #include "board_config.h"
 #include "antenna_label_provider.h"
-#include "meter_power_topology.h"
 
 #include <app/server/CommissioningWindowManager.h>
 #include <app/server/Server.h>
@@ -40,7 +39,6 @@ constexpr char TAG[] = "matter_smartmeter";
 
 SmartMeterPowerDelegate g_power_delegate;
 MeterPinDelegate g_pin_delegate;
-MeterPowerTopologyDelegate g_power_topology_delegate;
 uint16_t g_meter_endpoint_id = 0;
 uint16_t g_antenna_endpoint_id = kInvalidEndpointId;
 bool g_external_antenna = false;
@@ -366,27 +364,20 @@ extern "C" void app_main()
         abort();
     }
 
-    // Electrical Sensor is a utility type, leaving the antenna outlet as the
-    // sole application device. Keep measurements on endpoint 1 for HA history.
-    endpoint::electrical_sensor::config_t meter_config;
-    auto &power_config = meter_config.with_electrical_power_measurement();
-    power_config.delegate = &g_power_delegate;
-    power_config.feature_flags =
+    // Household measurements belong to an independent Electrical Meter.
+    // Keep endpoint 1 for HA history; never associate it with the RF control.
+    endpoint::electrical_meter::config_t meter_config;
+    meter_config.electrical_power_measurement.delegate = &g_power_delegate;
+    meter_config.electrical_power_measurement.feature_flags =
         cluster::electrical_power_measurement::feature::alternating_current::get_id();
-    meter_config.with_electrical_energy_measurement().feature_flags =
+    meter_config.electrical_energy_measurement.feature_flags =
         cluster::electrical_energy_measurement::feature::imported_energy::get_id() |
         cluster::electrical_energy_measurement::feature::exported_energy::get_id() |
         cluster::electrical_energy_measurement::feature::cumulative_energy::get_id();
-    // Like a single metering plug, one sensor measures the whole device.
-    // No SetTopology endpoint mapping or OnOff-dependent energy flow.
-    meter_config.power_topology.delegate = &g_power_topology_delegate;
-    meter_config.power_topology.feature_flags =
-        cluster::power_topology::feature::node_topology::get_id();
-
     endpoint_t *meter_endpoint =
-        endpoint::electrical_sensor::create(node, &meter_config, ENDPOINT_FLAG_NONE, nullptr);
+        endpoint::electrical_meter::create(node, &meter_config, ENDPOINT_FLAG_NONE, nullptr);
     if (meter_endpoint == nullptr) {
-        ESP_LOGE(TAG, "Failed to create Matter Electrical Sensor endpoint");
+        ESP_LOGE(TAG, "Failed to create Matter Electrical Meter endpoint");
         abort();
     }
     g_meter_endpoint_id = endpoint::get_id(meter_endpoint);
@@ -447,7 +438,7 @@ extern "C" void app_main()
     set_custom_device_info_provider(&label_provider);
     ESP_LOGI(TAG, "External antenna control endpoint=%u (On=external, Off=internal)",
              g_antenna_endpoint_id);
-    ESP_LOGI(TAG, "Whole-device meter readings on endpoint %u; sole application outlet %u",
+    ESP_LOGI(TAG, "Independent Electrical Meter endpoint %u; External antenna control endpoint %u",
              g_meter_endpoint_id, g_antenna_endpoint_id);
 
     cluster::keypad_input::config_t keypad_config;

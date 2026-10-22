@@ -1,83 +1,74 @@
-# Apple Home metering-outlet verification
+# Apple Home independent-meter verification
 
-Firmware **1.16**, Matter numeric software version **17**, changes the device
-classification and power topology after the 1.15 test still showed a generic
-meter tile without On/Off state or watts. The 1.16 tile behavior needs hardware
-verification. Test on one accessible meter first.
+Firmware **1.17**, Matter numeric software version **18**, restores an
+independent Electrical Meter and removes the association between household
+measurements and the antenna outlet. The previous outlet-style display worked
+after fresh Apple discovery, but the user reported that it added household
+power to loads already included in that measurement. The earlier independent
+meter did not show that double counting. Verify the restored behavior on one
+accessible meter before treating Apple Home behavior as confirmed.
 
-## Intended behavior
+## Intended Matter model
 
-| Selected antenna | Outlet state | Example tile |
+| Endpoint | Device type | Relevant servers |
 | --- | --- | --- |
-| External U.FL/IPEX | On | Smart Meter — On · 220 W |
-| Internal ceramic | Off | Smart Meter — Off · 220 W |
+| 1 | Electrical Meter (`0x0514`) | Power (`0x0090`), energy (`0x0091`), PIN input, vendor diagnostics |
+| 2 | On/Off Plug-in Unit (`0x010A`) | On/Off (`0x0006`), Fixed Label (`External antenna`) |
 
-The watts are the SML meter reading, not the antenna or ESP32's consumption.
-Tapping the outlet selects an antenna. Off does not shut down the reader or
-zero its measurements. Apple controls the subtitle and may choose different
-formatting or omit watts. The firmware cannot supply a custom subtitle such
-as "External" or "Internal".
+Endpoint 1 has one power and one energy source. It does not advertise the
+Electrical Sensor utility type (`0x0510`) or Power Topology (`0x009C`). Endpoint
+2 has no measurement clusters, and there is no whole-node or endpoint-set
+power association with it. Measurement paths remain on endpoint 1; antenna
+control remains on endpoint 2 to preserve HA's existing entity identities.
 
-## Matter model
-
-| Endpoint | Device types | Relevant servers |
-| --- | --- | --- |
-| 1 | Electrical Sensor (`0x0510`, utility) | Power (`0x0090`), energy (`0x0091`), Power Topology (`0x009C`), PIN input, vendor diagnostics |
-| 2 | On/Off Plug-in Unit (`0x010A`) | On/Off (`0x0006`), Fixed Label (`Smart Meter`) |
-
-Endpoint 1's Power Topology FeatureMap is `1` (NodeTopology), describing
-whole-device measurements. AvailableEndpoints and ActiveEndpoints are absent.
-There is one measurement source and one antenna switch. The outlet is now the
-sole application device type; the additional Electrical Meter (`0x0514`) type
-is no longer advertised. Existing Home Assistant measurement paths stay on
-endpoint 1, and antenna control stays on endpoint 2.
-
-This uses the same application and utility device types and NodeTopology
-feature reported for the [IKEA GRILLPLATS plug](https://matter-survey.org/device/grillplats-plug-4476-4096).
-Endpoint numbers remain unchanged to preserve existing HA entities.
-The [Matter device library](https://csa-iot.org/wp-content/uploads/2024/05/matter-1-3-device-library-specification.pdf)
-defines Electrical Sensor as a utility device whose measurements follow its
-Power Topology cluster. Matching this model does not prove Apple Home rendering.
+The antenna tile is intended to show only On/Off, with **On = external** and
+**Off = internal**. The meter's energy presentation is independent. Apple
+controls rendering; the firmware does not supply custom tile subtitles or
+guarantee two separately displayed tiles.
 
 ## Install and inspect
 
-1. Keep USB access to the XIAO and record its current firmware version. Keep a
-   known-good firmware image available. Connect an external antenna before
-   selecting it, and test where both antennas can reach Thread.
-2. Install `IR_Power_Meter.ota` using the companion's **OTA Firmware** entity
-   for a published latest release, or Matter Server's local firmware-update
-   interface for a candidate. The companion does not discover prereleases.
-3. Confirm software version `17` / `1.16` after reboot and again after one
-   minute, to check that rollback has not restored the previous image.
-4. In Matter Server, run **Interview**, then reload Home Assistant's **Matter**
-   integration. Inspect the device's endpoint/attribute data for the model
-   above. Verify `1/29/0` (DeviceTypeList) contains only Electrical Sensor,
-   `2/29/0` contains the outlet, and `1/156/65532` (FeatureMap) is `1`.
-   AvailableEndpoints and ActiveEndpoints must not be advertised by the topology
-   server. Confirm a non-null live `1/144/8` (ActivePower) reading independently
-   of the Apple Home tile.
-5. Allow Apple Home to refresh the accessory. Restart its active home hub if
-   necessary and inspect the controllable outlet, naming it **Smart Meter**
-   if its display name differs. Keep Matter pairings intact for this test.
+1. Keep USB access and a known-good image available. Connect an external
+   antenna before selecting it, and test where both antennas reach Thread.
+2. Install the single universal `IR_Power_Meter.ota` through the companion's
+   **OTA Firmware** entity for a published latest release, or Matter Server's
+   local firmware-update interface for a candidate. The same image supports
+   both saved antenna choices. The companion does not discover prereleases.
+3. Confirm version `18` / `1.17` after reboot and again after one minute to
+   check that rollback has not restored the previous image.
+4. Through the configured HA MCP server, refresh the Matter interview and
+   inspect descriptors. Expect `1/29/0` to contain Electrical Meter (`1300`),
+   `2/29/0` to contain On/Off Plug-in Unit (`266`), and no cluster `156` in
+   `1/29/1`. Endpoint 2 must not contain clusters `144` or `145`.
+5. Confirm a non-null `1/144/8` ActivePower reading and updating imported and
+   exported energy independently of Apple Home. Null startup measurements do
+   not establish whether Apple's aggregation is correct.
+6. Let Apple Home refresh. Check that the antenna control has no household
+   watts attached. If discovery remains stale, an Apple-only remove/re-add may
+   be needed; obtain approval before changing that pairing because Apple
+   scenes and automations may need rebuilding. Keep the HA pairing intact.
 
 Do not erase flash or factory-reset the XIAO to force a display refresh.
-If switching antennas loses Thread, tap BOOT three times to toggle back,
-or use `antenna internal` / `antenna external` on the USB console.
+If an antenna loses Thread, use three short BOOT taps or the USB console's
+`antenna internal` / `antenna external` recovery commands.
 
 ## Acceptance checks
 
-- The controllable Apple Home tile shows both On/Off and live watts.
-- On selects external; Off selects internal. The companion's **Active antenna**
-  diagnostic agrees with the selection.
-- SML power keeps updating in both states. Internal antenna does not create a
-  zero-power reading simply because the outlet is Off.
-- The Energy tab has no extra meter contributing the same measurements twice.
-- Home Assistant's existing power/energy entities and histories remain attached;
-  PIN entry, diagnostics, and OTA remain usable.
-- Reboot retains the antenna and restores the reported On/Off state.
+- HA retains existing power/energy entity identities and histories; PIN,
+  diagnostics and OTA still work.
+- The antenna control shows On/Off without household watts. It changes only
+  antenna selection, and the companion diagnostic agrees.
+- Power and energy continue updating in both antenna states; Off does not
+  produce a fabricated zero.
+- Reboot retains the antenna choice and restores its reported state.
+- Compare the physical meter with Apple's total while an independently metered
+  plug is active. For example, if household demand is 500 W including a 100 W
+  plug, Apple must not report 600 W by adding them together.
+- Repeat with the plug switched off/on, allowing for reporting delays and other
+  household load changes. Record whether Apple displays household demand or
+  only its monitored-load sum; neither should add the same load twice.
 
-Record Apple Home and home-hub OS versions, before/after screenshots, Matter
-endpoint data, and the results in both antenna states. A successful build and
-host tests do not establish these UI results. If the old generic tile remains,
-first determine whether Apple is still using the old Descriptor data. Do not
-remove its Matter fabric or reset the reader just to experiment with discovery.
+Record Apple/home-hub OS versions, descriptors, screenshots, power readings
+and results in both antenna states. Compilation and host tests do not prove
+Apple rendering or energy aggregation. No Apple result for 1.17 is confirmed
+until this physical test passes.

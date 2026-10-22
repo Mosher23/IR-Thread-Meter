@@ -6,7 +6,7 @@ page contains the firmware and hardware details.
 
 This is an ESP32-C6 port of Claus Muus' `zigbee-smartmeter-reader`. It keeps the
 byte-oriented SML parser and default OBIS mapping, but replaces the Arduino
-Zigbee endpoint with a native ESP-IDF/ESP-Matter **Electrical Sensor** endpoint
+Zigbee endpoint with a native ESP-IDF/ESP-Matter **Electrical Meter** endpoint
 over the ESP32-C6's built-in Thread radio.
 
 ## Device identity
@@ -14,7 +14,7 @@ over the ESP32-C6's built-in Thread radio.
 - Manufacturer: `SimpleIdeas`
 - Product and commissionable name: `IR Power Meter`
 - Development VID/PID: `0xFFF1` / `0x8000`
-- Software version: `17` (`1.16`)
+- Software version: `18` (`1.17`)
 - Hardware version: `1` (`1.0`)
 - Development serial number: `00000001`
 - ESP-IDF project name: `IR_Meter_Thread_Matter`
@@ -125,66 +125,49 @@ approximately `0x19ed70` bytes and 14% free in the smallest application partitio
 
 ## Antenna selection
 
-Two antenna variants can be built independently:
+Build one universal OTA for both antenna choices:
 
 ```bash
-idf.py -B build-internal -D SDKCONFIG=sdkconfig.internal \
-  -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.internal.defaults' build
-
-idf.py -B build-external -D SDKCONFIG=sdkconfig.external \
-  -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.external.defaults' build
+cd /path/to/IR-Thread-Meter
+bash scripts/build.sh ota
 ```
 
-On first boot these variants store the antenna choice in a separate `board_cfg`
-NVS partition. Future universal OTA builds read that setting before enabling
-the radio. Both variants drive GPIO3 low before configuring GPIO14. The
-internal build drives GPIO14 low for ceramic; the external build drives it high
-for U.FL/IPEX, following the
-[official Seeed RF-switch sequence](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/#hardware-overview).
+The universal firmware reads the antenna choice from the separate `board_cfg`
+NVS partition before enabling the radio. The board flasher provisions that
+setting for a new board. Both choices drive GPIO3 low before configuring
+GPIO14: low for the internal ceramic antenna, high for external U.FL/IPEX,
+following the [official Seeed RF-switch sequence](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/#hardware-overview).
+
 The antenna has a separate Matter **On/Off Plug-in Unit** endpoint
-(device type `0x010A`), normally endpoint 2. It may appear
-with an outlet icon or a generic name; rename that control **Smart Meter**
-in Home if needed. The firmware supplies a Fixed Label with that name, but
-controllers decide whether to use it.
+(device type `0x010A`), normally endpoint 2. Its Fixed Label is **External
+antenna**. A controller may display an outlet icon or choose a generic name;
+rename the control **External antenna** in that controller if needed.
 
-Endpoint 1 provides Power, Energy, PIN commands and read-only diagnostics;
-endpoint 2 is the **only** antenna switch.
-Its Fixed Label is **Smart Meter**; controllers may still use a generic
-display name, which can be renamed in their UI without changing its entity ID.
+**Off = internal, On = external.** The choice is saved in `board_cfg` and the
+GPIO14 RF switch changes immediately. The companion's read-only antenna
+diagnostic on endpoint 1 reflects the same saved choice. Reboots and universal
+OTA updates retain the selection. Connect the external antenna before selecting
+it, since losing Thread prevents a remote reverse command. Three short BOOT
+taps toggle the saved antenna and restart without erasing Matter credentials.
 
-**Off = internal, On = external.** The companion's read-only antenna diagnostic
-remains on endpoint 1 and reflects the same saved choice. A
-Matter controller can change the antenna without reflashing; the selection is saved in
-`board_cfg` and the GPIO14 RF switch changes immediately. On an uninitialized
-board, the internal USB build remains the default. Existing external-antenna
-boards keep their saved selection through OTA. Connect the external antenna
-before switching to it, since a lost Thread connection prevents a remote
-reverse command. Three short BOOT taps toggle the saved
-antenna and restart the board without erasing Matter credentials.
+Endpoint 1 advertises **Electrical Meter** (`0x0514`), with one Electrical Power
+Measurement (`0x0090`) and one Electrical Energy Measurement (`0x0091`) server,
+plus PIN input and vendor diagnostics. Endpoint 2 is the only antenna control
+and has no power or energy measurement clusters. No Electrical Sensor utility
+type or Power Topology cluster associates household readings with the outlet.
+Existing measurement paths, endpoint IDs and PIN commands remain unchanged.
+Antenna Off never zeros household power.
 
-If the control is absent, use **Interview** in HA's Matter Server and reload
-the Matter integration. In Apple Home, restart the relevant home hub and check
-for an outlet accessory. Do not factory-reset the XIAO or erase its Matter
-fabrics just to refresh a controller.
+This restores independent metering instead of presenting household demand as
+outlet consumption. The antenna tile should show only On/Off. Apple controls
+how the meter appears in its energy presentation; a combined antenna/watts
+tile is no longer the target. Verify Apple totals with another metered plug
+using the [test guide](../docs/APPLE_HOME_TESTING.md).
 
-This endpoint layout still needs real-device Apple Home validation. A successful
-firmware compile is not proof that an already-paired Home will refresh its cache.
-
-Endpoint 1 advertises only **Electrical Sensor** (`0x0510`), a utility device
-with one Electrical Power Measurement and one Electrical Energy Measurement
-server. Its **Power Topology** (`0x009C`) uses NodeTopology (`FeatureMap = 1`)
-for whole-device measurements. It has no AvailableEndpoints or ActiveEndpoints
-attributes. Endpoint 2 is the sole application device, the antenna outlet.
-This follows the outlet-plus-utility-sensor model used by metering plugs,
-without declaring an additional Electrical Meter (`0x0514`) application device.
-Endpoint IDs, measurement paths, PIN commands, and the read-only antenna
-diagnostic remain unchanged. Antenna Off never zeros household power.
-
-The intended Apple Home tile combines antenna On/Off state and live watts.
-The 1.15 topology did not produce this tile on the paired test accessory.
-Version 1.16 changes device classification and power topology; its Apple Home
-rendering still needs hardware verification using the
-[test guide](../docs/APPLE_HOME_TESTING.md). Controllers can cache descriptors.
+If a control is absent in HA, use **Interview** in Matter Server and reload the
+Matter integration. Apple Home may retain cached descriptors. Check discovery
+before considering an Apple-only re-pair; do not factory-reset the reader or
+erase its HA pairing to refresh the display.
 
 To change pins, baud rate, or report intervals:
 
