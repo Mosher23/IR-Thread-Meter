@@ -4,6 +4,7 @@
 #include "smart_meter.h"
 #include "board_config.h"
 #include "antenna_label_provider.h"
+#include "meter_power_topology.h"
 
 #include <app/server/CommissioningWindowManager.h>
 #include <app/server/Server.h>
@@ -39,6 +40,7 @@ constexpr char TAG[] = "matter_smartmeter";
 
 SmartMeterPowerDelegate g_power_delegate;
 MeterPinDelegate g_pin_delegate;
+MeterPowerTopologyDelegate g_power_topology_delegate;
 uint16_t g_meter_endpoint_id = 0;
 uint16_t g_antenna_endpoint_id = kInvalidEndpointId;
 bool g_external_antenna = false;
@@ -381,6 +383,23 @@ extern "C" void app_main()
         abort();
     }
     g_meter_endpoint_id = endpoint::get_id(meter_endpoint);
+
+    // Matter 1.6 Device Library 14.8.3 requires an Electrical Sensor component.
+    // The legacy meter helper creates EPM/EEM but omits this type and topology.
+    // Add only the missing metadata/server, preserving the one measurement
+    // source. TreeTopology covers this meter endpoint and its children (none);
+    // the antenna remains a sibling and is never a measured outlet.
+    ESP_ERROR_CHECK(endpoint::add_device_type(
+        meter_endpoint, endpoint::electrical_sensor::get_device_type_id(),
+        endpoint::electrical_sensor::get_device_type_version()));
+    cluster::power_topology::config_t topology_config;
+    topology_config.delegate = &g_power_topology_delegate;
+    topology_config.feature_flags = cluster::power_topology::feature::tree_topology::get_id();
+    if (cluster::power_topology::create(meter_endpoint, &topology_config,
+                                      CLUSTER_FLAG_SERVER) == nullptr) {
+        ESP_LOGE(TAG, "Failed to create meter-only power topology");
+        abort();
+    }
 
     // Read-only vendor diagnostics remain separate from the standard Matter
     // On/Off antenna control. Unknown controllers safely ignore these values.

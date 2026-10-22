@@ -14,7 +14,7 @@ over the ESP32-C6's built-in Thread radio.
 - Manufacturer: `SimpleIdeas`
 - Product and commissionable name: `IR Power Meter`
 - Development VID/PID: `0xFFF1` / `0x8000`
-- Software version: `18` (`1.17`)
+- Software version: `19` (`1.18`)
 - Hardware version: `1` (`1.0`)
 - Development serial number: `00000001`
 - ESP-IDF project name: `IR_Meter_Thread_Matter`
@@ -150,19 +150,27 @@ OTA updates retain the selection. Connect the external antenna before selecting
 it, since losing Thread prevents a remote reverse command. Three short BOOT
 taps toggle the saved antenna and restart without erasing Matter credentials.
 
-Endpoint 1 advertises **Electrical Meter** (`0x0514`), with one Electrical Power
-Measurement (`0x0090`) and one Electrical Energy Measurement (`0x0091`) server,
-plus PIN input and vendor diagnostics. Endpoint 2 is the only antenna control
-and has no power or energy measurement clusters. No Electrical Sensor utility
-type or Power Topology cluster associates household readings with the outlet.
+Endpoint 1 advertises **Electrical Meter** (`0x0514`) and its required
+**Electrical Sensor** component (`0x0510`), with one Electrical Power Measurement
+(`0x0090`) and one Electrical Energy Measurement (`0x0091`) server, plus PIN input
+and vendor diagnostics. Power Topology (`0x009C`) uses **TreeTopology**, FeatureMap
+`2`, covering endpoint 1 and its children. Endpoint 1 has no children. The
+antenna control is a sibling on endpoint 2, with no measurement clusters, so it
+is outside that scope. NodeTopology and endpoint-set associations are not used.
 Existing measurement paths, endpoint IDs and PIN commands remain unchanged.
 Antenna Off never zeros household power.
 
-This restores independent metering instead of presenting household demand as
-outlet consumption. The antenna tile should show only On/Off. Apple controls
-how the meter appears in its energy presentation; a combined antenna/watts
-tile is no longer the target. Verify Apple totals with another metered plug
-using the [test guide](../docs/APPLE_HOME_TESTING.md).
+[Matter 1.6 Device Library §14.8.3](https://csa-iot.org/wp-content/uploads/2026/06/23-27351-010_Matter-1.6-Device-Library-Specification.pdf)
+requires the Electrical Sensor component. The pinned SDK's legacy Electrical
+Meter helper creates EPM/EEM but omits that component and its Power Topology.
+The firmware adds the missing type and topology without creating another copy
+of either measurement cluster.
+
+The antenna tile should show only On/Off. Apple controls how the independent
+meter appears in its energy presentation; two separate Home View tiles are not
+guaranteed. Verify meter discovery and totals with another metered plug using
+the [test guide](../docs/APPLE_HOME_TESTING.md). The metadata correction does not
+establish Apple UI behavior until a physical test passes.
 
 If a control is absent in HA, use **Interview** in Matter Server and reload the
 Matter integration. Apple Home may retain cached descriptors. Check discovery

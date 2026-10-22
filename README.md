@@ -97,10 +97,11 @@ may display it as an outlet or give it a generic name. Rename that control
 supplies this label, but each controller chooses its display name. The
 companion's **Active antenna** diagnostic displays the actual selection.
 
-Firmware **1.17** exposes an independent **Electrical Meter** on endpoint 1
-and the **External antenna** control on endpoint 2. Household power and energy
-are not associated with the antenna outlet. Switching antennas does not stop
-measurement or zero the readings. The antenna tile is intended to show only
+Firmware **1.18** exposes an independent **Electrical Meter** with its required
+**Electrical Sensor** component on endpoint 1, and the **External antenna**
+control on endpoint 2. TreeTopology scopes household power and energy to the
+meter endpoint without associating them with the antenna outlet. Switching
+antennas does not stop measurement or zero the readings. The antenna tile is intended to show only
 On/Off; power belongs to the meter's energy presentation, not that tile.
 
 If the control is missing in Home Assistant, run **Interview** in Matter

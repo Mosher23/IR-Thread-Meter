@@ -24,12 +24,18 @@ class MeterPowerTopologyTests(unittest.TestCase):
 
     def test_household_readings_are_never_associated_with_antenna_outlet(self):
         source = (ROOT / "firmware/main/app_main.cpp").read_text()
-        # A utility sensor/NodeTopology or SetTopology would attach whole-house
-        # readings to the controllable outlet again.
-        self.assertNotIn("endpoint::electrical_sensor::", source)
-        self.assertNotIn("cluster::power_topology::", source)
-        self.assertNotIn("g_power_topology_delegate", source)
+        # Electrical Meter requires an Electrical Sensor component (DL 14.8.3).
+        # TreeTopology scopes it to the meter; the RF control is a sibling.
+        self.assertIn("endpoint::electrical_sensor::get_device_type_id()", source)
+        self.assertIn("cluster::power_topology::feature::tree_topology::get_id()", source)
+        self.assertEqual(source.count("cluster::power_topology::create("), 1)
+        self.assertNotIn("feature::node_topology::", source)
+        self.assertNotIn("feature::set_topology::", source)
+        self.assertNotIn("feature::dynamic_power_flow::", source)
+        self.assertNotIn("endpoint::set_parent_endpoint(", source)
         # The meter helper owns the only EPM/EEM instances.
+        self.assertNotIn("endpoint::electrical_sensor::create(", source)
+        self.assertNotIn("endpoint::electrical_sensor::add(", source)
         self.assertNotIn("cluster::electrical_power_measurement::create(", source)
         self.assertNotIn("cluster::electrical_energy_measurement::create(", source)
         antenna = source[source.index("endpoint::on_off_plug_in_unit::config_t"):
