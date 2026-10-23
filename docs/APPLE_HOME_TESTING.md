@@ -1,11 +1,11 @@
 # Apple Home independent-meter verification
 
-**Current direction:** the user supplied v1.12 screenshots showing a working
-native Apple power meter and requested that behavior back. The `1.19-test2`
-candidate preserves the v1.12 meter model and appends a synchronized antenna
-control, using newer OTA version identifiers.
-See the [restoration guide](V112_RESTORE_TESTING.md). The results below describe
-the preceding split-endpoint experiments, not the restored candidate.
+**Current direction:** `1.19-test2` also omitted the meter after the user
+re-paired with valid HA measurements. The requested `1.19-test3` model removes
+the separate outlet, keeps v1.12's original meter endpoint and native HA antenna
+control, and adds a 3-second BOOT hold for antenna selection. See the
+[current test guide](V112_HA_ANTENNA_TESTING.md). The results below describe
+preceding split-endpoint experiments.
 
 ## Current result and compatibility candidate
 

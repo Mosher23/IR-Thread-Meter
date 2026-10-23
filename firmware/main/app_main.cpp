@@ -3,7 +3,7 @@
 #include "meter_pin_delegate.h"
 #include "smart_meter.h"
 #include "board_config.h"
-#include "antenna_label_provider.h"
+#include "boot_button.h"
 
 #include <app/server/CommissioningWindowManager.h>
 #include <app/server/Server.h>
@@ -16,7 +16,6 @@
 #include <esp_ota_ops.h>
 #include <esp_system.h>
 #include <esp_matter.h>
-#include <esp_matter_providers.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <nvs_flash.h>
@@ -40,36 +39,26 @@ constexpr char TAG[] = "matter_smartmeter";
 SmartMeterPowerDelegate g_power_delegate;
 MeterPinDelegate g_pin_delegate;
 uint16_t g_meter_endpoint_id = 0;
-uint16_t g_antenna_endpoint_id = kInvalidEndpointId;
 bool g_external_antenna = false;
 bool g_antenna_controls_ready = false;
 std::atomic<bool> g_energy_initialized{false};
 
 void publish_antenna_diagnostic(intptr_t)
 {
-    // The old meter control remains an alias for existing HA installations.
-    // Mirror the authoritative board setting to both endpoints. These updates
-    // re-enter PRE_UPDATE, where an unchanged choice is a no-op (no NVS writes
-    // or further scheduled work).
-    for (uint16_t endpoint_id : {g_meter_endpoint_id, g_antenna_endpoint_id}) {
-        if (endpoint_id == kInvalidEndpointId) {
-            continue;
-        }
-        attribute_t *on_off = attribute::get(endpoint_id, OnOff::Id,
-                                            OnOff::Attributes::OnOff::Id);
-        esp_matter_attr_val_t current = esp_matter_invalid(nullptr);
-        if (on_off == nullptr || attribute::get_val(on_off, &current) != ESP_OK) {
-            ESP_LOGE(TAG, "Could not read antenna switch on endpoint %u", endpoint_id);
-            continue;
-        }
-        if (current.val.b != g_external_antenna) {
-            esp_matter_attr_val_t state = esp_matter_bool(g_external_antenna);
-            const esp_err_t error = attribute::update(
-                endpoint_id, OnOff::Id, OnOff::Attributes::OnOff::Id, &state);
-            if (error != ESP_OK) {
-                ESP_LOGE(TAG, "Could not synchronize antenna switch %u: %s",
-                         endpoint_id, esp_err_to_name(error));
-            }
+    // Preserve v1.12's meter On/Off cluster for the native HA antenna entity.
+    // BOOT/USB recovery and Matter commands share the saved board setting.
+    attribute_t *on_off = attribute::get(g_meter_endpoint_id, OnOff::Id,
+                                        OnOff::Attributes::OnOff::Id);
+    esp_matter_attr_val_t current = esp_matter_invalid(nullptr);
+    if (on_off == nullptr || attribute::get_val(on_off, &current) != ESP_OK) {
+        ESP_LOGE(TAG, "Could not read meter antenna state");
+    } else if (current.val.b != g_external_antenna) {
+        esp_matter_attr_val_t state = esp_matter_bool(g_external_antenna);
+        const esp_err_t error = attribute::update(
+            g_meter_endpoint_id, OnOff::Id, OnOff::Attributes::OnOff::Id, &state);
+        if (error != ESP_OK) {
+            ESP_LOGE(TAG, "Could not synchronize meter antenna state: %s",
+                     esp_err_to_name(error));
         }
     }
     esp_matter_attr_val_t value = esp_matter_bool(g_external_antenna);
@@ -94,7 +83,7 @@ esp_err_t attribute_update_cb(attribute::callback_type_t type, uint16_t endpoint
                               esp_matter_attr_val_t *value, void *)
 {
     if (type != attribute::PRE_UPDATE ||
-        (endpoint_id != g_meter_endpoint_id && endpoint_id != g_antenna_endpoint_id) ||
+        endpoint_id != g_meter_endpoint_id ||
         cluster_id != OnOff::Id || attribute_id != OnOff::Attributes::OnOff::Id) {
         return ESP_OK;
     }
@@ -282,6 +271,21 @@ void ota_health_task(void *)
     vTaskDelete(nullptr);
 }
 
+void toggle_antenna_and_restart(const char *reason)
+{
+    const bool next_external = !g_external_antenna;
+    ESP_LOGW(TAG, "%s: selecting %s antenna", reason,
+             next_external ? "external" : "internal");
+    const esp_err_t error = board_config_set_antenna(next_external);
+    if (error != ESP_OK) {
+        ESP_LOGE(TAG, "Could not save antenna selection: %s", esp_err_to_name(error));
+        return;
+    }
+    // Restart applies the saved RF selection and rejoins Thread without
+    // erasing Matter pairings or the per-board commissioning identity.
+    esp_restart();
+}
+
 void factory_reset_button_task(void *)
 {
     gpio_config_t config = {};
@@ -290,49 +294,23 @@ void factory_reset_button_task(void *)
     config.pull_up_en = GPIO_PULLUP_ENABLE;
     ESP_ERROR_CHECK(gpio_config(&config));
 
-    TickType_t pressed_since = 0;
-    TickType_t last_short_release = 0;
-    unsigned short_presses = 0;
+    BootButtonGestures gestures;
     while (true) {
-        const TickType_t now = xTaskGetTickCount();
+        const uint32_t now_ms = static_cast<uint32_t>(
+            (static_cast<uint64_t>(xTaskGetTickCount()) * 1000) / configTICK_RATE_HZ);
         const bool pressed = gpio_get_level(
                                  static_cast<gpio_num_t>(CONFIG_SMARTMETER_FACTORY_RESET_GPIO)) == 0;
-        if (pressed) {
-            if (pressed_since == 0) {
-                pressed_since = now;
-            } else if ((now - pressed_since) >= pdMS_TO_TICKS(5000)) {
-                ESP_LOGW(TAG, "Factory reset requested");
-                esp_matter::factory_reset();
-                vTaskDelete(nullptr);
-            }
-        } else {
-            if (pressed_since != 0 && (now - pressed_since) <= pdMS_TO_TICKS(700)) {
-                if (short_presses != 0 &&
-                    (now - last_short_release) > pdMS_TO_TICKS(2000)) {
-                    short_presses = 0;
-                }
-                last_short_release = now;
-                if (++short_presses == 3) {
-                    // A fixed "restore internal" shortcut cannot recover a
-                    // device that lost Thread after switching *to* internal.
-                    // Toggle instead, so another three taps can undo either
-                    // antenna selection without erasing Matter credentials.
-                    const bool next_external = !g_external_antenna;
-                    ESP_LOGW(TAG, "Three BOOT taps: selecting %s antenna",
-                             next_external ? "external" : "internal");
-                    const esp_err_t error = board_config_set_antenna(next_external);
-                    if (error == ESP_OK) {
-                        esp_restart();
-                    }
-                    ESP_LOGE(TAG, "Could not change antenna: %s",
-                             esp_err_to_name(error));
-                    short_presses = 0;
-                }
-            } else if (short_presses != 0 &&
-                       (now - last_short_release) > pdMS_TO_TICKS(2000)) {
-                short_presses = 0;
-            }
-            pressed_since = 0;
+        switch (gestures.Update(pressed, now_ms)) {
+        case BootButtonGestures::Action::ToggleAntenna:
+            toggle_antenna_and_restart("BOOT antenna gesture");
+            break;
+        case BootButtonGestures::Action::FactoryReset:
+            ESP_LOGW(TAG, "Ten-second BOOT hold: factory reset requested");
+            esp_matter::factory_reset();
+            vTaskDelete(nullptr);
+            break;
+        case BootButtonGestures::Action::None:
+            break;
         }
         vTaskDelay(pdMS_TO_TICKS(50));
     }
@@ -414,9 +392,8 @@ extern "C" void app_main()
     }
 
     // On means external U.FL antenna, Off means internal ceramic antenna.
-    // Keep this legacy alias so HA entity IDs, automations and companion
-    // diagnostics continue working after OTA. Apple Home discovers the
-    // separate standard device endpoint below instead of this extra cluster.
+    // Keep the exact v1.12 meter layout. HA exposes this cluster as its
+    // antenna switch; no separate outlet endpoint is advertised to Apple.
     cluster::on_off::config_t antenna_config = {};
     antenna_config.on_off = g_external_antenna;
     cluster_t *antenna_cluster = cluster::on_off::create(
@@ -429,34 +406,6 @@ extern "C" void app_main()
         ESP_LOGE(TAG, "Failed to create Matter antenna switch");
         abort();
     }
-
-    // A controllable plug-in unit (0x010A), NOT Generic Switch (a physical
-    // button/event source), maps to an Apple Home on/off accessory. Create it
-    // after the meter so the existing meter endpoint ID never shifts.
-    endpoint::on_off_plug_in_unit::config_t external_antenna_config;
-    external_antenna_config.on_off.on_off = g_external_antenna;
-    // The SDK plug-in helper otherwise defaults to Off at every power-up.
-    external_antenna_config.on_off_lighting.start_up_on_off = nullable<uint8_t>();
-    endpoint_t *antenna_endpoint = endpoint::on_off_plug_in_unit::create(
-        node, &external_antenna_config, ENDPOINT_FLAG_NONE, nullptr);
-    if (antenna_endpoint == nullptr) {
-        ESP_LOGE(TAG, "Failed to create External Antenna endpoint");
-        abort();
-    }
-    g_antenna_endpoint_id = endpoint::get_id(antenna_endpoint);
-    // The standard endpoint helper installs Off, On and Toggle, along with
-    // Identify, Groups and Scenes. Fixed Label describes its purpose without
-    // falsely declaring this native endpoint to be a bridged device.
-    cluster::fixed_label::config_t label_config = {};
-    if (cluster::fixed_label::create(antenna_endpoint, &label_config,
-                                     CLUSTER_FLAG_SERVER) == nullptr) {
-        ESP_LOGE(TAG, "Failed to create External Antenna label");
-        abort();
-    }
-    static AntennaLabelProvider label_provider(g_antenna_endpoint_id);
-    set_custom_device_info_provider(&label_provider);
-    ESP_LOGI(TAG, "External Antenna control endpoint=%u (On=external, Off=internal)",
-             g_antenna_endpoint_id);
 
     cluster::keypad_input::config_t keypad_config;
     keypad_config.delegate = &g_pin_delegate;

@@ -1,5 +1,10 @@
 # v1.12 meter with a separate antenna control
 
+**Result:** 1.19-test2 was installed and re-paired with live HA readings, but
+Apple Home still showed only the outlet. The user requested the original
+single meter endpoint with HA antenna control and a BOOT hold instead; see
+[1.19-test3 testing](V112_HA_ANTENNA_TESTING.md).
+
 The user's v1.12 screenshots show a native Electrical Meter with a lightning
 icon, live wattage in Apple's Energy breakdown, and a Power row in its details.
 This establishes that the earlier meter presentation worked. It supersedes any

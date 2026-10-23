@@ -14,7 +14,7 @@ over the ESP32-C6's built-in Thread radio.
 - Manufacturer: `SimpleIdeas`
 - Product and commissionable name: `IR Power Meter`
 - Development VID/PID: `0xFFF1` / `0x8000`
-- Software version: `21` (`1.19-test2`, v1.12 restoration candidate)
+- Software version: `22` (`1.19-test3`, v1.12 meter / HA antenna candidate)
 - Hardware version: `1` (`1.0`)
 - Development serial number: `00000001`
 - ESP-IDF project name: `IR_Meter_Thread_Matter`
@@ -138,34 +138,35 @@ setting for a new board. Both choices drive GPIO3 low before configuring
 GPIO14: low for the internal ceramic antenna, high for external U.FL/IPEX,
 following the [official Seeed RF-switch sequence](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/#hardware-overview).
 
-The `1.19-test2` candidate retains the original v1.12 **Electrical Meter**
-(`0x0514`) on endpoint 1: Electrical Power Measurement (`0x0090`), Electrical
-Energy Measurement (`0x0091`), original On/Off antenna control (`0x0006`), PIN
-input and vendor diagnostics. It adds a separate On/Off Plug-in Unit (`0x010A`)
-on endpoint 2, with Fixed Label **External Antenna** and no measurement clusters.
-The meter is created first, preserving its existing measurement paths.
+The `1.19-test3` candidate uses the original v1.12 single **Electrical Meter**
+(`0x0514`) on endpoint 1: power (`0x0090`), energy (`0x0091`), antenna On/Off
+(`0x0006`), PIN input and vendor diagnostics. No second application endpoint,
+On/Off Plug-in Unit, added Electrical Sensor type, label provider or Power
+Topology server is created. The original meter cluster construction is retained.
 
-The original endpoint-1 control and the new endpoint-2 control are aliases of
-the same physical RF selection. Changes synchronize both attributes and the
-read-only diagnostic without duplicate NVS writes. Startup synchronization
-keeps the saved `board_cfg` choice authoritative over restored Matter values.
-**Off = internal, On = external.**
+HA exposes the original On/Off cluster as a native antenna control. If its
+entity was disabled during the separate-endpoint tests, re-enable it and let
+Matter discovery refresh. Exclude that HA entity from HomeKit Bridge if it
+should not be bridged to Apple. This uses the controller presentation observed
+on v1.12; it does not introduce per-fabric descriptor filtering or claim that
+Apple is denied protocol-level access to the On/Off attribute.
 
-No Electrical Sensor type or Power Topology server is added. The original meter
-construction, measurements and keypad setup match v1.12; the appended antenna
-endpoint, label provider and synchronized callbacks use the v1.13 implementation.
-This preserves the user's known-working meter model rather than asserting that
-the old helper implements every requirement of the current device library.
+**Off = internal, On = external.** The saved `board_cfg` selection remains
+authoritative during startup. The companion diagnostic reflects this setting.
+Connect the external antenna before selecting it, since losing Thread prevents
+a remote reverse command.
 
-Numeric version **21** (`1.19-test2`) allows OTA from the version-20 experiment.
-The one universal image supports either saved antenna choice. Connect the
-external antenna before selecting it; losing Thread prevents a remote reverse
-command. Three short BOOT taps toggle the saved antenna and restart without
-erasing Matter credentials. USB console recovery is also available with
-`antenna internal` or `antenna external`.
+While firmware is running, **hold BOOT for at least 3 seconds and release before
+10 seconds** to toggle the saved antenna and restart. Three short BOOT taps
+still perform the same action. Neither antenna gesture erases pairings. A
+**10-second hold** performs the Matter factory reset; this longer threshold
+replaces the old 5-second reset to distinguish it from antenna selection.
+The USB console also accepts `antenna internal` or `antenna external`.
 
-Apple display and aggregation still need a physical check. See the
-[restore test guide](../docs/V112_RESTORE_TESTING.md).
+Numeric version **22** (`1.19-test3`) permits OTA over the version-21 experiment.
+The one universal image supports either saved antenna choice. Apple rendering
+and aggregation still need a physical check; see the
+[current test guide](../docs/V112_HA_ANTENNA_TESTING.md).
 
 To change pins, baud rate, or report intervals:
 
@@ -218,10 +219,10 @@ Thread failures.
   `antenna internal` (or `antenna external`) saves the choice and restarts;
   use `antenna internal` to recover from a wrong remote selection.
 - Three short taps of BOOT while firmware is running toggle the saved
-  antenna and restart, without erasing Matter credentials. The existing
-  five-second BOOT hold still performs a Matter factory reset.
+  antenna and restart, without erasing Matter credentials. A 3-second hold
+  followed by release performs the same action.
 - Reports are emitted only after the complete SML frame passes its CRC check.
-- Hold BOOT for five seconds while the firmware is running to erase Matter
+- Hold BOOT for ten seconds while the firmware is running to erase Matter
   fabrics and Thread credentials.
 - The Matter shell is enabled; `matter esp factoryreset` is an alternative.
 

@@ -75,7 +75,7 @@ installation, copy `custom_components/smartmeter` to
 
 | Integration | Entities and controls |
 | --- | --- |
-| Home Assistant Matter | Native **Energy**, **Power**, and an independent **External antenna** on/off control. |
+| Home Assistant Matter | Native **Energy**, **Power**, and the original meter **External antenna** on/off control. |
 | IR Smart Meter companion | **OBIS Received**, **Manufacturer**, **Meter ID**, and **Active antenna** diagnostics; **Meter PIN**, **Send PIN**, **Short light pulse**, **Long light pulse**, and **OTA Firmware**. |
 
 The companion uses your existing Matter device and does not create another
@@ -86,32 +86,30 @@ through HACS; its version is independent of the XIAO firmware version.
 
 ### Select the antenna
 
-The `1.19-test2` candidate preserves the **v1.12 Electrical Meter** layout on
-endpoint 1 and adds a separate **External Antenna** control on endpoint 2.
-The user's v1.12 screenshots show the native Apple power meter presentation
-that this build is intended to restore.
-
-The meter retains power, energy, its original antenna On/Off cluster, PIN input
-and diagnostics. Its original On/Off cluster remains as a synchronized alias;
-the new control is a standard On/Off Plug-in Unit with no measurement clusters.
-Only the meter reports power and energy. No Electrical Sensor type or Power
-Topology association is added to the v1.12 meter model.
+The `1.19-test3` candidate restores the **v1.12 single Electrical Meter**
+layout. Its original On/Off cluster provides the native HA antenna control;
+there is no separate outlet endpoint for Apple Home to discover. The intended
+Apple presentation is the energy meter shown in the user's v1.12 screenshots.
+This rebuild still requires verification in Apple Home.
 
 **Off means the built-in ceramic antenna; On means the external U.FL/IPEX
-antenna.** Both controls follow the same saved setting. HA may expose both
-controls; either changes the same physical antenna. The companion's **Active
-antenna** diagnostic shows the selected antenna.
+antenna.** In HA, enable the original meter antenna entity if it was disabled
+while testing the separate endpoint. Keep it out of HomeKit Bridge's selected
+entities if antenna control should remain in HA only. The companion's
+**Active antenna** diagnostic shows the saved selection.
 
 Use one universal OTA for either saved antenna choice. The version is
-`1.19-test2` (numeric 21), so it installs over the preceding test firmware.
-Apple display and whole-home aggregation still need a physical check; see the
-[restore test guide](docs/V112_RESTORE_TESTING.md). Earlier split-endpoint
-experiments are recorded in [Apple Home test results](docs/APPLE_HOME_TESTING.md).
+`1.19-test3` (numeric 22), allowing installation over the previous test builds.
+See the [current test guide](docs/V112_HA_ANTENNA_TESTING.md).
 
-Connect the external antenna before selecting it. If the newly selected
-antenna cannot reach Thread, tap **BOOT three times** while running to toggle
-its saved choice and restart. The USB console also accepts `antenna internal`
-or `antenna external`. These recovery actions preserve Matter credentials.
+Connect the external antenna before selecting it. BOOT offers local recovery:
+
+- **Hold for 3 seconds, then release:** toggle the saved antenna and restart.
+- **Three short taps:** the same antenna toggle and restart.
+- **Hold for 10 seconds:** factory-reset Matter pairing and Thread credentials.
+
+Antenna gestures preserve pairings, serial number and Matter setup code. The
+USB console also accepts `antenna internal` or `antenna external`.
 
 ### Enter a meter PIN
 
