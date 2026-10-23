@@ -86,41 +86,32 @@ through HACS; its version is independent of the XIAO firmware version.
 
 ### Select the antenna
 
-The firmware exposes one **External antenna** control
-(Matter endpoint 2). **Off means the built-in ceramic antenna; On means the
-external U.FL/IPEX antenna.** Power, Energy, PIN commands, and diagnostics
-remain on the meter endpoint.
+The `1.19-test2` candidate preserves the **v1.12 Electrical Meter** layout on
+endpoint 1 and adds a separate **External Antenna** control on endpoint 2.
+The user's v1.12 screenshots show the native Apple power meter presentation
+that this build is intended to restore.
 
-The antenna control uses Matter's plug-in unit device type, so a controller
-may display it as an outlet or give it a generic name. Rename that control
-**External antenna** in Home Assistant or Apple Home if needed. The firmware
-supplies this label, but each controller chooses its display name. The
-companion's **Active antenna** diagnostic displays the actual selection.
+The meter retains power, energy, its original antenna On/Off cluster, PIN input
+and diagnostics. Its original On/Off cluster remains as a synchronized alias;
+the new control is a standard On/Off Plug-in Unit with no measurement clusters.
+Only the meter reports power and energy. No Electrical Sensor type or Power
+Topology association is added to the v1.12 meter model.
 
-Firmware **1.18** exposes an independent **Electrical Meter** with its required
-**Electrical Sensor** component on endpoint 1, and the **External antenna**
-control on endpoint 2. TreeTopology scopes household power and energy to the
-meter endpoint without associating them with the antenna outlet. Switching
-antennas does not stop measurement or zero the readings. The antenna tile is intended to show only
-On/Off; power belongs to the meter's energy presentation, not that tile.
+**Off means the built-in ceramic antenna; On means the external U.FL/IPEX
+antenna.** Both controls follow the same saved setting. HA may expose both
+controls; either changes the same physical antenna. The companion's **Active
+antenna** diagnostic shows the selected antenna.
 
-If the control is missing in Home Assistant, run **Interview** in Matter
-Server and reload the **Matter** integration. Apple Home can cache the device
-model, so verify that it has discovered the independent meter and antenna
-control. **Apple Home still omits the independent meter in the reported 1.18
-test.** The measurement-only `1.19-test1` candidate also failed after a fresh
-Apple pairing with valid HA readings. Apple compatibility remains unresolved;
-double-counting prevention has not been verified. See the
-[test guide](docs/APPLE_HOME_TESTING.md) and
-[antenna details](firmware/README.md#antenna-selection).
+Use one universal OTA for either saved antenna choice. The version is
+`1.19-test2` (numeric 21), so it installs over the preceding test firmware.
+Apple display and whole-home aggregation still need a physical check; see the
+[restore test guide](docs/V112_RESTORE_TESTING.md). Earlier split-endpoint
+experiments are recorded in [Apple Home test results](docs/APPLE_HOME_TESTING.md).
 
-The selection takes effect immediately and is saved across reboots, OTA, and
-Matter factory resets. Connect the external antenna *before* switching to it.
-If the newly selected antenna cannot reach the Thread network, HA cannot send
-the reverse command. Tap the XIAO's **BOOT button three times** while it is
-running to toggle to the other antenna and restart. You can also use the USB
-console command `antenna internal` or `antenna external` to select an antenna
-and restart. These recovery actions preserve Matter credentials.
+Connect the external antenna before selecting it. If the newly selected
+antenna cannot reach Thread, tap **BOOT three times** while running to toggle
+its saved choice and restart. The USB console also accepts `antenna internal`
+or `antenna external`. These recovery actions preserve Matter credentials.
 
 ### Enter a meter PIN
 

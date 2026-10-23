@@ -14,7 +14,7 @@ over the ESP32-C6's built-in Thread radio.
 - Manufacturer: `SimpleIdeas`
 - Product and commissionable name: `IR Power Meter`
 - Development VID/PID: `0xFFF1` / `0x8000`
-- Software version: `19` (`1.18`)
+- Software version: `21` (`1.19-test2`, v1.12 restoration candidate)
 - Hardware version: `1` (`1.0`)
 - Development serial number: `00000001`
 - ESP-IDF project name: `IR_Meter_Thread_Matter`
@@ -138,44 +138,34 @@ setting for a new board. Both choices drive GPIO3 low before configuring
 GPIO14: low for the internal ceramic antenna, high for external U.FL/IPEX,
 following the [official Seeed RF-switch sequence](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/#hardware-overview).
 
-The antenna has a separate Matter **On/Off Plug-in Unit** endpoint
-(device type `0x010A`), normally endpoint 2. Its Fixed Label is **External
-antenna**. A controller may display an outlet icon or choose a generic name;
-rename the control **External antenna** in that controller if needed.
+The `1.19-test2` candidate retains the original v1.12 **Electrical Meter**
+(`0x0514`) on endpoint 1: Electrical Power Measurement (`0x0090`), Electrical
+Energy Measurement (`0x0091`), original On/Off antenna control (`0x0006`), PIN
+input and vendor diagnostics. It adds a separate On/Off Plug-in Unit (`0x010A`)
+on endpoint 2, with Fixed Label **External Antenna** and no measurement clusters.
+The meter is created first, preserving its existing measurement paths.
 
-**Off = internal, On = external.** The choice is saved in `board_cfg` and the
-GPIO14 RF switch changes immediately. The companion's read-only antenna
-diagnostic on endpoint 1 reflects the same saved choice. Reboots and universal
-OTA updates retain the selection. Connect the external antenna before selecting
-it, since losing Thread prevents a remote reverse command. Three short BOOT
-taps toggle the saved antenna and restart without erasing Matter credentials.
+The original endpoint-1 control and the new endpoint-2 control are aliases of
+the same physical RF selection. Changes synchronize both attributes and the
+read-only diagnostic without duplicate NVS writes. Startup synchronization
+keeps the saved `board_cfg` choice authoritative over restored Matter values.
+**Off = internal, On = external.**
 
-Endpoint 1 advertises **Electrical Meter** (`0x0514`) and its required
-**Electrical Sensor** component (`0x0510`), with one Electrical Power Measurement
-(`0x0090`) and one Electrical Energy Measurement (`0x0091`) server, plus PIN input
-and vendor diagnostics. Power Topology (`0x009C`) uses **TreeTopology**, FeatureMap
-`2`, covering endpoint 1 and its children. Endpoint 1 has no children. The
-antenna control is a sibling on endpoint 2, with no measurement clusters, so it
-is outside that scope. NodeTopology and endpoint-set associations are not used.
-Existing measurement paths, endpoint IDs and PIN commands remain unchanged.
-Antenna Off never zeros household power.
+No Electrical Sensor type or Power Topology server is added. The original meter
+construction, measurements and keypad setup match v1.12; the appended antenna
+endpoint, label provider and synchronized callbacks use the v1.13 implementation.
+This preserves the user's known-working meter model rather than asserting that
+the old helper implements every requirement of the current device library.
 
-[Matter 1.6 Device Library §14.8.3](https://csa-iot.org/wp-content/uploads/2026/06/23-27351-010_Matter-1.6-Device-Library-Specification.pdf)
-requires the Electrical Sensor component. The pinned SDK's legacy Electrical
-Meter helper creates EPM/EEM but omits that component and its Power Topology.
-The firmware adds the missing type and topology without creating another copy
-of either measurement cluster.
+Numeric version **21** (`1.19-test2`) allows OTA from the version-20 experiment.
+The one universal image supports either saved antenna choice. Connect the
+external antenna before selecting it; losing Thread prevents a remote reverse
+command. Three short BOOT taps toggle the saved antenna and restart without
+erasing Matter credentials. USB console recovery is also available with
+`antenna internal` or `antenna external`.
 
-The antenna tile should show only On/Off. Apple controls how the independent
-meter appears in its energy presentation; two separate Home View tiles are not
-guaranteed. Verify meter discovery and totals with another metered plug using
-the [test guide](../docs/APPLE_HOME_TESTING.md). The metadata correction does not
-establish Apple UI behavior until a physical test passes.
-
-If a control is absent in HA, use **Interview** in Matter Server and reload the
-Matter integration. Apple Home may retain cached descriptors. Check discovery
-before considering an Apple-only re-pair; do not factory-reset the reader or
-erase its HA pairing to refresh the display.
+Apple display and aggregation still need a physical check. See the
+[restore test guide](../docs/V112_RESTORE_TESTING.md).
 
 To change pins, baud rate, or report intervals:
 

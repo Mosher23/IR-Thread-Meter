@@ -1,5 +1,12 @@
 # Apple Home independent-meter verification
 
+**Current direction:** the user supplied v1.12 screenshots showing a working
+native Apple power meter and requested that behavior back. The `1.19-test2`
+candidate preserves the v1.12 meter model and appends a synchronized antenna
+control, using newer OTA version identifiers.
+See the [restoration guide](V112_RESTORE_TESTING.md). The results below describe
+the preceding split-endpoint experiments, not the restored candidate.
+
 ## Current result and compatibility candidate
 
 **1.19-test1 also failed the Apple Home acceptance check.** On 2026-10-23,

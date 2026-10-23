@@ -3,8 +3,8 @@
 #include <lib/support/CHIPMem.h>
 #include <platform/DeviceInfoProvider.h>
 
-// Only supplies the independent antenna control's descriptive label. This does not
-// enable ESP32 factory-data credentials or change attestation, serial
+// Only supplies the antenna endpoint's descriptive label. In particular this
+// does not enable ESP32 factory-data credentials or change attestation, serial
 // number, passcode or the commissioning provider used by existing boards.
 class AntennaLabelProvider final : public chip::DeviceLayer::DeviceInfoProvider
 {
@@ -42,7 +42,7 @@ private:
                 return false;
             }
             value.label = chip::CharSpan::fromCharString("name");
-            value.value = chip::CharSpan::fromCharString("External antenna");
+            value.value = chip::CharSpan::fromCharString("External Antenna");
             mRead = true;
             return true;
         }
