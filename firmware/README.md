@@ -111,7 +111,7 @@ source ./export.sh
 Then build this project:
 
 ```bash
-cd /path/to/IR-Thread-Meter/firmware
+cd /path/to/SML-over-Matter-Thread/firmware
 idf.py set-target esp32c6
 idf.py build
 idf.py -p /dev/cu.usbmodemXXXX flash monitor
@@ -128,7 +128,7 @@ approximately `0x19ed70` bytes and 14% free in the smallest application partitio
 Build one universal OTA for both antenna choices:
 
 ```bash
-cd /path/to/IR-Thread-Meter
+cd /path/to/SML-over-Matter-Thread
 bash scripts/build.sh ota
 ```
 

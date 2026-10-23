@@ -7,7 +7,7 @@ Apple Home displays the energy meter without a separate antenna outlet.
 The optional companion adds diagnostics, optical PIN entry, and GitHub OTA
 updates.
 
-**Latest firmware: [v1.20](https://github.com/Mosher23/IR-Thread-Meter/releases/tag/v1.20).**
+**Latest firmware: [v1.20](https://github.com/Mosher23/SML-over-Matter-Thread/releases/tag/v1.20).**
 One universal OTA image supports either antenna. The product and discovery
 name is **SML over Matter/Thread**; controllers may retain an existing name
 until you rename it in their app.
@@ -37,10 +37,10 @@ See [wiring details](firmware/README.md#hardware).
 ### Flash the firmware
 
 Follow the [first-time USB flashing guide](BOOTSTRAP_AND_OTA.md#first-time-usb-flash)
-and choose a [release with USB bootstrap files](https://github.com/Mosher23/IR-Thread-Meter/releases).
+and choose a [release with USB bootstrap files](https://github.com/Mosher23/SML-over-Matter-Thread/releases).
 OTA-only releases are for boards that have already been set up.
-For an already configured board, use the single **IR_Power_Meter.ota** from
-[v1.20](https://github.com/Mosher23/IR-Thread-Meter/releases/tag/v1.20). It keeps
+For an already configured board, use the single **SML-over-Matter-Thread.ota** from
+[v1.20](https://github.com/Mosher23/SML-over-Matter-Thread/releases/tag/v1.20). It keeps
 the saved antenna selection. This OTA release does not include USB flash files.
 
 ### Add the meter to Matter
@@ -66,12 +66,12 @@ null at startup. Do not erase or re-pair the XIAO as a first step.
 The companion is optional and does **not** replace the Matter integration.
 Install it after your meter appears in Home Assistant Matter.
 
-[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Mosher23&repository=IR-Thread-Meter&category=integration)
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Mosher23&repository=SML-over-Matter-Thread&category=integration)
 
 If the button does not add the repository:
 
 1. Open **HACS → ⋮ → Custom repositories**. Add
-   `https://github.com/Mosher23/IR-Thread-Meter` as an **Integration**.
+   `https://github.com/Mosher23/SML-over-Matter-Thread` as an **Integration**.
 2. Download **SML over Matter/Thread** from the `main` branch and restart Home
    Assistant. Firmware release tags are separate from integration updates.
 3. Go to **Settings → Devices & services → Add integration → SML over Matter/Thread**
@@ -145,9 +145,11 @@ screen unless you intend to clear those values.
 ## 🔄 Firmware updates
 
 Update the HA companion through HACS first, then open its **OTA Firmware**
-entity in Home Assistant. Companion **2.1.4** uses Matter's numeric version
+entity in Home Assistant. Companion **2.1.5** uses Matter's numeric version
 order when determining which firmware updates are available.
-Refresh **OTA Firmware** to check immediately.
+Refresh **OTA Firmware** to check immediately. The repository is now
+`Mosher23/SML-over-Matter-Thread`; use that URL in HACS. Existing entity
+identifiers and pairings are preserved.
 Click **Install** when a compatible newer release appears. The image is
 downloaded from GitHub, validated, transferred via Matter Server, and followed
 by a XIAO reboot. **Updates never install

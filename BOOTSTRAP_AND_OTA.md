@@ -21,7 +21,7 @@ There are two separate installs:
 
 ## First-time USB flash
 
-Open [GitHub releases](https://github.com/Mosher23/IR-Thread-Meter/releases)
+Open [GitHub releases](https://github.com/Mosher23/SML-over-Matter-Thread/releases)
 and choose a release containing the USB files below. OTA-only releases update
 boards that have already been set up and do not contain USB bootstrap files.
 Download these **individual files into one folder** (no ZIP archive):
@@ -82,9 +82,9 @@ and [install the optional companion](README.md#install-the-home-assistant-compan
 
 ## Update over Thread
 
-The latest [v1.20 release](https://github.com/Mosher23/IR-Thread-Meter/releases/tag/v1.20)
+The latest [v1.20 release](https://github.com/Mosher23/SML-over-Matter-Thread/releases/tag/v1.20)
 contains one universal OTA image. Update the HA companion through HACS to
-**2.1.4** before checking for it: update order follows Matter software version
+**2.1.5** before checking for it: update order follows Matter software version
 **24**, independently of the display label.
 
 After flashing and commissioning the meter, use

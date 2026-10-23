@@ -38,7 +38,7 @@ def manifest_fixture(image=None):
     return {"schema": 1, "vendor_id": ota.VID, "product_id": ota.PID, "hardware_version": 1,
             "software_version": 9, "version_string": "1.8", "min_version": 8, "max_version": 8,
             "size": len(image), "sha256": hashlib.sha256(image).hexdigest(),
-            "url": f"https://github.com/{ota.REPOSITORY}/releases/download/v1.8/IR_Power_Meter.ota"}
+            "url": f"https://github.com/{ota.REPOSITORY}/releases/download/v1.8/SML-over-Matter-Thread.ota"}
 
 
 def ready_attributes():
@@ -57,10 +57,41 @@ class OtaValidationTests(unittest.TestCase):
         image = image_fixture(version=24, version_string="1.2", **{"6": 23})
         data = dict(manifest_fixture(image), software_version=24, version_string="1.2",
                     max_version=23,
-                    url="https://github.com/Mosher23/IR-Thread-Meter/releases/download/v1.2/IR_Power_Meter.ota")
+                    url="https://github.com/Mosher23/SML-over-Matter-Thread/releases/download/v1.2/SML-over-Matter-Thread.ota")
         release = ota.parse_manifest(data, "v1.2", {data["url"]})
         ota.validate_image(image, release)
         self.assertEqual((release.version, release.version_string), (24, "1.2"))
+
+    def test_renamed_repository_accepts_immutable_manifest_and_prefers_new_asset(self):
+        data = manifest_fixture()
+        current = data["url"]
+        legacy = current.replace(ota.REPOSITORY, ota.LEGACY_REPOSITORY).replace(
+            ota.OTA_FILENAME, ota.LEGACY_OTA_FILENAME)
+        data["url"] = legacy
+        release = self.release_with_assets(data, {current})
+        self.assertEqual(release.url, current)
+        self.assertIn(ota.REPOSITORY, release.notes_url)
+        ota.validate_image(image_fixture(), release)
+        # An existing release may still have only its original filename.
+        original_name = current.replace(ota.OTA_FILENAME, ota.LEGACY_OTA_FILENAME)
+        self.assertEqual(self.release_with_assets(data, {original_name}).url, original_name)
+        self.assertEqual(self.release_with_assets(data, {legacy}).url, legacy)
+
+    def release_with_assets(self, data, assets):
+        return ota.parse_manifest(data, "v1.8", assets)
+
+    def test_repository_aliases_never_allow_an_unrelated_release_or_image(self):
+        data = manifest_fixture()
+        legacy = data["url"].replace(ota.REPOSITORY, ota.LEGACY_REPOSITORY).replace(
+            ota.OTA_FILENAME, ota.LEGACY_OTA_FILENAME)
+        for bad in (legacy.replace("v1.8", "v1.9"),
+                    legacy.replace("Mosher23", "someone-else"),
+                    legacy.replace("IR-Thread-Meter", "unrelated-repo"),
+                    legacy.replace("IR_Power_Meter.ota", "unrelated.ota")):
+            with self.subTest(url=bad), self.assertRaises(ValueError):
+                self.release_with_assets(dict(data, url=bad), {bad, data["url"]})
+        with self.assertRaises(ValueError):
+            self.release_with_assets(dict(data, url=legacy), {legacy.replace("v1.8", "v1.9")})
 
     def test_corruption(self):
         image = image_fixture()

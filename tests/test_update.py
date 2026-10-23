@@ -61,7 +61,7 @@ def release_response():
     manifest = manifest_fixture()
     return json.dumps({"tag_name": "v1.8", "draft": False, "prerelease": False, "assets": [
         {"browser_download_url": manifest["url"]},
-        {"browser_download_url": manifest["url"].replace("IR_Power_Meter.ota", "ota-manifest.json")},
+        {"browser_download_url": manifest["url"].replace("SML-over-Matter-Thread.ota", "ota-manifest.json")},
     ]}).encode()
 
 
@@ -121,7 +121,7 @@ class UpdateTests(unittest.IsolatedAsyncioTestCase):
                     "software_version": 8, "version_string": "1.7"}
         release = {"tag_name": "v1.7", "draft": False, "prerelease": False,
                    "assets": [{"browser_download_url":
-                   "https://github.com/Mosher23/IR-Thread-Meter/releases/download/v1.7/ota-manifest.json"}]}
+                   "https://github.com/Mosher23/SML-over-Matter-Thread/releases/download/v1.7/ota-manifest.json"}]}
         self.attrs["0/40/9"] = 7
         self.attrs["0/40/10"] = "1.6"
         with patch.object(update, "_download", AsyncMock(side_effect=[
@@ -135,11 +135,11 @@ class UpdateTests(unittest.IsolatedAsyncioTestCase):
         image = image_fixture(version=24, version_string="1.2", **{"6": 23})
         manifest = dict(manifest_fixture(image), software_version=24,
                         version_string="1.2", max_version=23,
-                        url="https://github.com/Mosher23/IR-Thread-Meter/releases/download/v1.2/IR_Power_Meter.ota")
+                        url="https://github.com/Mosher23/SML-over-Matter-Thread/releases/download/v1.2/SML-over-Matter-Thread.ota")
         response = json.dumps({"tag_name": "v1.2", "draft": False, "prerelease": False,
                                "assets": [{"browser_download_url": manifest["url"]},
                                           {"browser_download_url": manifest["url"].replace(
-                                              "IR_Power_Meter.ota", "ota-manifest.json")}]}).encode()
+                                              "SML-over-Matter-Thread.ota", "ota-manifest.json")}]}).encode()
         self.attrs.update({"0/40/9": 19, "0/40/10": "1.18"})
         with patch.object(update, "_download", AsyncMock(side_effect=[
                 response, json.dumps(manifest).encode()])):
@@ -154,6 +154,24 @@ class UpdateTests(unittest.IsolatedAsyncioTestCase):
         self.entity._release = None
         self.attrs["0/40/9"] = 23
         self.assertFalse(self.entity.version_is_newer("1.2", "1.19-test4"))
+        self.client.upload_ota_file.assert_not_awaited()
+        self.client.update_node.assert_not_awaited()
+
+    async def test_renamed_release_downloads_existing_manifest_and_new_ota_alias(self):
+        manifest = manifest_fixture()
+        manifest["url"] = manifest["url"].replace(
+            update.REPOSITORY, "Mosher23/IR-Thread-Meter").replace(
+                "SML-over-Matter-Thread.ota", "IR_Power_Meter.ota")
+        with patch.object(update, "_download", AsyncMock(side_effect=[
+                release_response(), json.dumps(manifest).encode()])) as download:
+            await self.entity.async_update()
+        self.assertIsNone(self.entity.extra_state_attributes["last_error"])
+        self.assertIn("Mosher23/SML-over-Matter-Thread/releases/download/v1.8/SML-over-Matter-Thread.ota",
+                      self.entity._release.url)
+        self.assertIn("/repos/Mosher23/SML-over-Matter-Thread/releases/latest",
+                      download.await_args_list[0].args[1])
+        self.assertIn("/SML-over-Matter-Thread/releases/download/v1.8/ota-manifest.json",
+                      download.await_args_list[1].args[1])
         self.client.upload_ota_file.assert_not_awaited()
         self.client.update_node.assert_not_awaited()
 

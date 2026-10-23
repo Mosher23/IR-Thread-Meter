@@ -34,7 +34,7 @@ async def _download(session, url: str, limit: int, *, missing_ok=False):
         if parsed.scheme != "https" or parsed.hostname not in _DOWNLOAD_HOSTS or parsed.port not in (None, 443) or parsed.username:
             raise ValueError("Release download redirected outside trusted GitHub hosts")
         async with session.get(url, allow_redirects=False,
-                               headers={"User-Agent": "IR-Thread-Meter-HA/1.7"},
+                               headers={"User-Agent": "SML-over-Matter-Thread-HA/2.1.5"},
                                timeout=ClientTimeout(total=120)) as response:
             if response.status in (301, 302, 303, 307, 308):
                 url = urljoin(url, response.headers["Location"])

@@ -8,7 +8,10 @@ import re
 import struct
 from urllib.parse import quote
 
-REPOSITORY = "Mosher23/IR-Thread-Meter"
+REPOSITORY = "Mosher23/SML-over-Matter-Thread"
+LEGACY_REPOSITORY = "Mosher23/IR-Thread-Meter"
+OTA_FILENAME = "SML-over-Matter-Thread.ota"
+LEGACY_OTA_FILENAME = "IR_Power_Meter.ota"
 VID, PID = 0xFFF1, 0x8000
 BOOTSTRAP_VERSION = 8
 MAX_PAYLOAD = 0x1E0000
@@ -63,11 +66,21 @@ def parse_manifest(data: dict, tag: str, asset_urls: set[str]) -> Release:
     checksum = data.get("sha256", "")
     if not isinstance(checksum, str) or not re.fullmatch(r"[0-9a-f]{64}", checksum):
         raise ValueError("Invalid SHA-256 checksum")
-    expected = f"https://github.com/{REPOSITORY}/releases/download/{quote(tag, safe='')}/IR_Power_Meter.ota"
-    if data.get("url") != expected or expected not in asset_urls:
+    # Published manifests retain their original URLs and checksums after the
+    # repository rename. Accept only these exact repository/file aliases for
+    # the same tag, and prefer the new download attached to this release.
+    candidates = [
+        f"https://github.com/{repository}/releases/download/{quote(tag, safe='')}/{filename}"
+        for repository in (REPOSITORY, LEGACY_REPOSITORY)
+        for filename in (OTA_FILENAME, LEGACY_OTA_FILENAME)
+    ]
+    if data.get("url") not in candidates:
+        raise ValueError("OTA asset is not attached to the selected repository release")
+    selected = next((url for url in candidates if url in asset_urls), None)
+    if selected is None:
         raise ValueError("OTA asset is not attached to the selected repository release")
     return Release(tag, version, version_string, minimum, maximum, data["size"],
-                   checksum, expected, notes)
+                   checksum, selected, notes)
 
 
 def ota_header(image: bytes) -> tuple[dict, bytes]:

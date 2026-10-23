@@ -91,7 +91,7 @@ def package(source: Path, output: Path, *, ota_only=False):
         ota.parse_manifest(manifest, tag, set())
         finish(output, manifest)
         return
-    image = output / "IR_Power_Meter.ota"
+    image = output / ota.OTA_FILENAME
     maximum = version - 1
     subprocess.run([sys.executable, str(tool), "create", "-v", str(ota.VID), "-p", str(ota.PID),
                     "-vn", str(version), "-vs", string, "-da", "sha256",

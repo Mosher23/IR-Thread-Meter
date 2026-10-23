@@ -59,10 +59,10 @@ class UniversalOtaPackageTests(unittest.TestCase):
                 packager.package(source, output, ota_only=True)
             run.assert_called_once()
             self.assertEqual({path.name for path in output.iterdir()},
-                             {"IR_Power_Meter.ota", "ota-manifest.json", "provisioning.json", "SHA256SUMS"})
+                             {"SML-over-Matter-Thread.ota", "ota-manifest.json", "provisioning.json", "SHA256SUMS"})
             manifest = json.loads((output / "ota-manifest.json").read_text())
             release = packager.ota.parse_manifest(manifest, "v1.15", {manifest["url"]})
-            packager.ota.validate_image((output / "IR_Power_Meter.ota").read_bytes(), release)
+            packager.ota.validate_image((output / "SML-over-Matter-Thread.ota").read_bytes(), release)
             for line in (output / "SHA256SUMS").read_text().splitlines():
                 checksum, name = line.split("  ", 1)
                 self.assertEqual(hashlib.sha256((output / name).read_bytes()).hexdigest(), checksum)

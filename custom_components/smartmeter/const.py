@@ -5,8 +5,8 @@ from __future__ import annotations
 NAME = "SML over Matter/Thread"
 DOMAIN = "smartmeter"
 CONF_DEVICE_ID = "device_id"
-INTEGRATION_VERSION = "2.1.4"
-PROJECT_URL = "https://github.com/Mosher23/IR-Thread-Meter"
+INTEGRATION_VERSION = "2.1.5"
+PROJECT_URL = "https://github.com/Mosher23/SML-over-Matter-Thread"
 
 
 def companion_device_info(device_id: str) -> dict:
