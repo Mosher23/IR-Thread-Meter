@@ -1,5 +1,44 @@
 # Apple Home independent-meter verification
 
+## Current result and compatibility candidate
+
+**1.18 has not passed the Apple Home acceptance check.** On 2026-10-23,
+the user reported the same omission after removing and adding the device on
+1.18 and testing with the reader attached. Apple Home reports firmware 1.18,
+shows the antenna outlet, and its Energy view lists only the other metered
+plug. This is an observed failure, not proof that Apple never supports meters.
+
+HA initially reported valid power and cumulative energy. After a board reboot,
+both native entities became unknown and the OBIS diagnostic was off. The user
+confirmed that the reader was powered but detached after an earlier attached
+test. The integration diagnostics snapshot retained the old readings:
+do not use that snapshot alone as evidence of live data.
+Reloading only the companion restored its diagnostics connection.
+
+The **1.19-test1** candidate (numeric software version **20**) replaces the
+combined Electrical Meter / Electrical Sensor device types on endpoint 1 with
+**Electrical Sensor (`0x0510`) only**. The SDK sensor helper creates the same
+single EPM, EEM and TreeTopology servers. It retains endpoint IDs, attribute
+paths, PIN and vendor diagnostics, and the separate unmetered antenna outlet.
+This isolates device-type classification as the experiment; it does not change
+the SML parser, units, measurement scope or antenna behavior.
+
+The local Mac's shipped HomeKitMatter `chipplugin-protocol-map.plist` lists
+both `0x0510` and `0x0514` in `NativeMatterDeviceTypes`. That establishes that
+Apple recognizes the identifiers, not that its Home app will render this
+composition or treat its readings as a whole-house total. Measurement-only
+Electrical Sensor endpoints are used by other implementations, for example
+[this meter integration](https://github.com/dacarson/homebridge-rainforest-eagle3#apple-home-energy--matter).
+Its bridged result does not prove native-board behavior.
+
+This candidate is **not a verified Apple Home fix**. Do not promote it to the
+stable release or claim that it prevents double counting until the checks
+below pass with continuous valid readings. For its descriptor check, expect
+only device type `1296` on endpoint 1, with the same cluster and measurement
+paths; all other acceptance checks remain applicable.
+
+## Released 1.18 model and test procedure
+
 Firmware **1.18**, Matter numeric software version **19**, adds the required
 Electrical Sensor component to the independent Electrical Meter and scopes its
 measurements to that endpoint with TreeTopology. In a fresh Apple Home pairing,

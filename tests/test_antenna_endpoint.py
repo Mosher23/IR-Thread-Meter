@@ -13,7 +13,7 @@ APP = ROOT / "firmware/main/app_main.cpp"
 class AntennaEndpointTests(unittest.TestCase):
     def test_only_separate_antenna_endpoint_is_a_switch(self):
         source = APP.read_text()
-        self.assertLess(source.index("endpoint::electrical_meter::create("),
+        self.assertLess(source.index("endpoint::electrical_sensor::create("),
                         source.index("endpoint::on_off_plug_in_unit::create("))
         self.assertIn("external_antenna_config.on_off.on_off = g_external_antenna", source)
         self.assertIn("on_off_lighting.start_up_on_off = nullable<uint8_t>()", source)

@@ -366,9 +366,11 @@ extern "C" void app_main()
         abort();
     }
 
-    // Household measurements belong to an independent Electrical Meter.
+    // Household measurements belong to an independent Electrical Sensor.
     // Keep endpoint 1 for HA history; never associate it with the RF control.
-    endpoint::electrical_meter::config_t meter_config;
+    endpoint::electrical_sensor::config_t meter_config;
+    meter_config.with_electrical_power_measurement();
+    meter_config.with_electrical_energy_measurement();
     meter_config.electrical_power_measurement.delegate = &g_power_delegate;
     meter_config.electrical_power_measurement.feature_flags =
         cluster::electrical_power_measurement::feature::alternating_current::get_id();
@@ -376,28 +378,26 @@ extern "C" void app_main()
         cluster::electrical_energy_measurement::feature::imported_energy::get_id() |
         cluster::electrical_energy_measurement::feature::exported_energy::get_id() |
         cluster::electrical_energy_measurement::feature::cumulative_energy::get_id();
+    // Advertise the measurement-only type (0x0510), without the newer
+    // Electrical Meter / tariff application type (0x0514). This candidate
+    // tests native Apple energy discovery; it does not promise a Home tile.
+    meter_config.power_topology.delegate = &g_power_topology_delegate;
+    meter_config.power_topology.feature_flags =
+        cluster::power_topology::feature::tree_topology::get_id();
     endpoint_t *meter_endpoint =
-        endpoint::electrical_meter::create(node, &meter_config, ENDPOINT_FLAG_NONE, nullptr);
+        endpoint::electrical_sensor::create(node, &meter_config, ENDPOINT_FLAG_NONE, nullptr);
     if (meter_endpoint == nullptr) {
-        ESP_LOGE(TAG, "Failed to create Matter Electrical Meter endpoint");
+        ESP_LOGE(TAG, "Failed to create Matter Electrical Sensor endpoint");
         abort();
     }
     g_meter_endpoint_id = endpoint::get_id(meter_endpoint);
 
-    // Matter 1.6 Device Library 14.8.3 requires an Electrical Sensor component.
-    // The legacy meter helper creates EPM/EEM but omits this type and topology.
-    // Add only the missing metadata/server, preserving the one measurement
-    // source. TreeTopology covers this meter endpoint and its children (none);
-    // the antenna remains a sibling and is never a measured outlet.
-    ESP_ERROR_CHECK(endpoint::add_device_type(
-        meter_endpoint, endpoint::electrical_sensor::get_device_type_id(),
-        endpoint::electrical_sensor::get_device_type_version()));
-    cluster::power_topology::config_t topology_config;
-    topology_config.delegate = &g_power_topology_delegate;
-    topology_config.feature_flags = cluster::power_topology::feature::tree_topology::get_id();
-    if (cluster::power_topology::create(meter_endpoint, &topology_config,
-                                      CLUSTER_FLAG_SERVER) == nullptr) {
-        ESP_LOGE(TAG, "Failed to create meter-only power topology");
+    // The sensor helper owns the sole EPM/EEM/PowerTopology servers.
+    // Preserve their attribute paths and keep the antenna as a sibling.
+    if (cluster::get(g_meter_endpoint_id, ElectricalPowerMeasurement::Id) == nullptr ||
+        cluster::get(g_meter_endpoint_id, ElectricalEnergyMeasurement::Id) == nullptr ||
+        cluster::get(g_meter_endpoint_id, PowerTopology::Id) == nullptr) {
+        ESP_LOGE(TAG, "Failed to create required electrical sensor servers");
         abort();
     }
 
