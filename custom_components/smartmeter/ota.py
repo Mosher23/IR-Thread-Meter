@@ -142,7 +142,7 @@ def compatibility(client, attributes: dict, endpoint: int) -> str | None:
     if getattr(info, "schema_version", 0) < 13 or not callable(getattr(client, "upload_ota_file", None)):
         return "OTA upload requires Matter Server API schema 13 and a compatible HA Matter client"
     if (attributes.get("0/40/2"), attributes.get("0/40/4"), attributes.get("0/40/7")) != (VID, PID, 1):
-        return "The selected device identity is not the supported XIAO IR Power Meter"
+        return "The selected device identity is not the supported XIAO SML reader"
     current = attributes.get("0/40/9")
     if type(current) is not int or current < BOOTSTRAP_VERSION or attributes.get(f"{endpoint}/{0xFFF1FC01}/4") is not True:
         return "Install the v1.7 (or newer) USB bootstrap first to save the antenna and enable rollback"

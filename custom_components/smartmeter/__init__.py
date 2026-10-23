@@ -1,4 +1,4 @@
-"""IR Smart Meter custom integration."""
+"""SML over Matter/Thread custom integration."""
 
 from __future__ import annotations
 
@@ -95,7 +95,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_refresh()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Migrate only the exact legacy PIN names, including a user-set device
+    # Migrate only the exact legacy default names, including a user-set device
     # name. Other names chosen by the user remain untouched.
     registry = dr.async_get(hass)
     device = registry.async_get_device_by_identifier(

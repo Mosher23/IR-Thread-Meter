@@ -85,7 +85,7 @@ and [install the optional companion](README.md#install-the-home-assistant-compan
 ## Update over Thread
 
 After flashing and commissioning the meter, use
-**IR Smart Meter → OTA Firmware** in Home Assistant:
+**SML over Matter/Thread → OTA Firmware** in Home Assistant:
 
 1. Keep the XIAO powered and connected to Thread.
 2. Open **OTA Firmware** and check **Installed version** and **Latest version**.

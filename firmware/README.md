@@ -1,4 +1,4 @@
-# Matter-over-Thread Smart-meter Reader
+# SML over Matter/Thread — Firmware
 
 **New to this project?** Start with the [main setup guide](../README.md) for
 USB flashing, Matter commissioning, HACS installation, and OTA updates. This
@@ -12,7 +12,7 @@ over the ESP32-C6's built-in Thread radio.
 ## Device identity
 
 - Manufacturer: `SimpleIdeas`
-- Product and commissionable name: `IR Power Meter`
+- Product and commissionable name: `SML over Matter/Thread`
 - Development VID/PID: `0xFFF1` / `0x8000`
 - Software version: `22` (`1.19-test3`, v1.12 meter / HA antenna candidate)
 - Hardware version: `1` (`1.0`)

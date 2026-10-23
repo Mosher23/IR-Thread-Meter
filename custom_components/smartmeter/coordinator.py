@@ -32,7 +32,7 @@ class SmartMeterCoordinator(DataUpdateCoordinator[dict[str, object]]):
         super().__init__(
             hass,
             _LOGGER,
-            name=f"IR Smart Meter {node_id}",
+            name=f"SML over Matter/Thread {node_id}",
             update_interval=POLL_INTERVAL,
         )
         self.matter_client = matter_client

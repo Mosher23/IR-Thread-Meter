@@ -1,7 +1,8 @@
-"""Constants for the IR Smart Meter integration."""
+"""Constants for the SML over Matter/Thread integration."""
 
 from __future__ import annotations
 
+NAME = "SML over Matter/Thread"
 DOMAIN = "smartmeter"
 CONF_DEVICE_ID = "device_id"
 INTEGRATION_VERSION = "2.1.3"
@@ -12,7 +13,7 @@ def companion_device_info(device_id: str) -> dict:
     """Describe the HA companion, not the XIAO's separate Matter device."""
     return {
         "identifiers": {(DOMAIN, device_id)},
-        "name": "IR Smart Meter",
+        "name": NAME,
         "manufacturer": "Mosher23",
         "model": "Home Assistant companion integration",
         "sw_version": INTEGRATION_VERSION,
@@ -21,9 +22,9 @@ def companion_device_info(device_id: str) -> dict:
 
 
 def normalize_legacy_name(name: str | None) -> str | None:
-    """Drop PIN from names used by older versions of this integration."""
-    if name == "IR Smart Meter PIN":
-        return "IR Smart Meter"
+    """Update default project names while preserving custom names."""
+    if name in {"IR Smart Meter", "IR Smart Meter PIN"}:
+        return NAME
     if name == "Smart Meter PIN":
         return "Smart Meter"
     return name

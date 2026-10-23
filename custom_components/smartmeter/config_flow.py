@@ -1,4 +1,4 @@
-"""Configuration flow for the IR Smart Meter integration."""
+"""Configuration flow for the SML over Matter/Thread integration."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from homeassistant.const import CONF_DEVICE_ID
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
-from .const import DOMAIN
+from .const import DOMAIN, NAME
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -34,7 +34,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 await self.async_set_unique_id(f"smartmeter-{node.node_id}")
                 self._abort_if_unique_id_configured()
-                return self.async_create_entry(title="IR Smart Meter", data=user_input)
+                return self.async_create_entry(title=NAME, data=user_input)
 
         return self.async_show_form(
             step_id="user",

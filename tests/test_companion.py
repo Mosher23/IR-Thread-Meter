@@ -141,8 +141,11 @@ class CompanionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(manifest["domain"], ROOT.name)
         self.assertEqual(manifest["version"], const.INTEGRATION_VERSION)
 
-    def test_old_entry_and_device_names_drop_pin(self):
-        self.assertEqual(const.normalize_legacy_name("IR Smart Meter PIN"), "IR Smart Meter")
+    def test_old_default_names_use_project_name_and_preserve_custom_names(self):
+        self.assertEqual(const.normalize_legacy_name("IR Smart Meter PIN"), const.NAME)
+        self.assertEqual(const.normalize_legacy_name("IR Smart Meter"), const.NAME)
+        self.assertEqual(const.normalize_legacy_name(const.NAME), const.NAME)
+        self.assertIsNone(const.normalize_legacy_name(None))
         self.assertEqual(const.normalize_legacy_name("Smart Meter PIN"), "Smart Meter")
         self.assertEqual(const.normalize_legacy_name("My meter"), "My meter")
 

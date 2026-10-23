@@ -1,6 +1,6 @@
 {
   "domain": "smartmeter",
-  "name": "IR Smart Meter",
+  "name": "SML over Matter/Thread",
   "version": "2.1.3",
   "codeowners": ["@Mosher23"],
   "config_flow": true,

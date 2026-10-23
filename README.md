@@ -1,8 +1,8 @@
-# ⚡ IR Smart Meter — Matter over Thread
+# ⚡ SML over Matter/Thread
 
 Use a Seeed XIAO ESP32-C6 and an optical SML head to read an electricity meter
 over Matter/Thread. Home Assistant's built-in **Matter** integration shows
-Energy and Power. The optional **IR Smart Meter** companion adds diagnostics,
+Energy and Power. The optional **SML over Matter/Thread** companion adds diagnostics,
 optical PIN entry, and GitHub firmware updates.
 
 ✅ **Tested with an EMH eHZB electricity meter.** Other meters need compatible
@@ -64,9 +64,9 @@ If the button does not add the repository:
 
 1. Open **HACS → ⋮ → Custom repositories**. Add
    `https://github.com/Mosher23/IR-Thread-Meter` as an **Integration**.
-2. Download **IR Smart Meter** from the `main` branch and restart Home
+2. Download **SML over Matter/Thread** from the `main` branch and restart Home
    Assistant. Firmware release tags are separate from integration updates.
-3. Go to **Settings → Devices & services → Add integration → IR Smart Meter**
+3. Go to **Settings → Devices & services → Add integration → SML over Matter/Thread**
    and select your existing Matter device.
 
 HACS installs only the HA companion, **not XIAO firmware**. For manual
@@ -76,7 +76,7 @@ installation, copy `custom_components/smartmeter` to
 | Integration | Entities and controls |
 | --- | --- |
 | Home Assistant Matter | Native **Energy**, **Power**, and the original meter **External antenna** on/off control. |
-| IR Smart Meter companion | **OBIS Received**, **Manufacturer**, **Meter ID**, and **Active antenna** diagnostics; **Meter PIN**, **Send PIN**, **Short light pulse**, **Long light pulse**, and **OTA Firmware**. |
+| SML over Matter/Thread companion | **OBIS Received**, **Manufacturer**, **Meter ID**, and **Active antenna** diagnostics; **Meter PIN**, **Send PIN**, **Short light pulse**, **Long light pulse**, and **OTA Firmware**. |
 
 The companion uses your existing Matter device and does not create another
 Power sensor. No re-pairing is needed to add it. Keep the companion updated
