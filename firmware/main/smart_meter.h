@@ -20,3 +20,6 @@ esp_err_t smart_meter_start(uint16_t matter_endpoint_id, SmartMeterPowerDelegate
 esp_err_t smart_meter_submit_pin(const char *pin);
 esp_err_t smart_meter_submit_pulse(bool long_pulse);
 esp_err_t smart_meter_register_console_commands();
+
+// Blink the status LED three times and wait for completion (task context only).
+esp_err_t smart_meter_confirm_antenna_toggle();

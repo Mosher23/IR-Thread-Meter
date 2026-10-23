@@ -281,6 +281,13 @@ void toggle_antenna_and_restart(const char *reason)
         ESP_LOGE(TAG, "Could not save antenna selection: %s", esp_err_to_name(error));
         return;
     }
+    // Confirm only after persistence succeeds, before rebooting. The LED task
+    // owns PWM and overrides normal breathing/receive pulses for this pattern.
+    const esp_err_t indication = smart_meter_confirm_antenna_toggle();
+    if (indication != ESP_OK) {
+        ESP_LOGW(TAG, "Antenna saved but LED confirmation failed: %s",
+                 esp_err_to_name(indication));
+    }
     // Restart applies the saved RF selection and rejoins Thread without
     // erasing Matter pairings or the per-board commissioning identity.
     esp_restart();

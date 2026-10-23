@@ -107,6 +107,7 @@ QueueHandle_t g_optical_queue = nullptr;
 SemaphoreHandle_t g_uart_mutex = nullptr;
 TaskHandle_t g_led_task_handle = nullptr;
 std::atomic_bool g_optical_busy{false};
+std::atomic_bool g_antenna_confirmation_pending{false};
 
 constexpr ledc_mode_t kLedSpeedMode = LEDC_LOW_SPEED_MODE;
 constexpr ledc_timer_t kLedTimer = LEDC_TIMER_0;
@@ -117,6 +118,8 @@ constexpr uint32_t kLedBreathMaxDuty = 180;
 constexpr uint32_t kLedStepMs = 20;
 constexpr uint32_t kLedBreathSteps = 200;
 constexpr uint32_t kLedReceivePulseMs = 160;
+constexpr uint32_t kLedAntennaBlinkMs = 80;
+constexpr unsigned kLedAntennaBlinks = 3;
 
 struct PublishSnapshot {
     uint16_t endpoint_id;
@@ -427,6 +430,20 @@ void status_led_task(void *)
             pulse_until = xTaskGetTickCount() + pdMS_TO_TICKS(kLedReceivePulseMs);
         }
 
+        // Keep all PWM writes in this task so receive pulses and breathing
+        // cannot interrupt the antenna confirmation pattern.
+        if (g_antenna_confirmation_pending.load()) {
+            for (unsigned blink = 0; blink < kLedAntennaBlinks; ++blink) {
+                set_led_duty(kLedMaxDuty);
+                vTaskDelay(pdMS_TO_TICKS(kLedAntennaBlinkMs));
+                set_led_duty(0);
+                vTaskDelay(pdMS_TO_TICKS(kLedAntennaBlinkMs));
+            }
+            pulse_until = 0;
+            g_antenna_confirmation_pending.store(false);
+            continue;
+        }
+
         const TickType_t now = xTaskGetTickCount();
         if (pulse_until != 0 && static_cast<int32_t>(pulse_until - now) > 0) {
             set_led_duty(kLedMaxDuty);
@@ -659,6 +676,25 @@ int meter_pin_console_command(int argc, char **argv)
     return 0;
 }
 } // namespace
+
+esp_err_t smart_meter_confirm_antenna_toggle()
+{
+    if (g_led_task_handle == nullptr) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    g_antenna_confirmation_pending.store(true);
+    xTaskNotifyGive(g_led_task_handle);
+    const TickType_t started = xTaskGetTickCount();
+    // The pattern takes 480 ms. Bound the wait so a failed LED task cannot
+    // prevent antenna recovery from restarting the board.
+    while (g_antenna_confirmation_pending.load()) {
+        if (xTaskGetTickCount() - started >= pdMS_TO_TICKS(1000)) {
+            return ESP_ERR_TIMEOUT;
+        }
+        vTaskDelay(pdMS_TO_TICKS(kLedStepMs));
+    }
+    return ESP_OK;
+}
 
 esp_err_t smart_meter_start(uint16_t matter_endpoint_id, SmartMeterPowerDelegate *power_delegate)
 {

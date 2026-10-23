@@ -107,8 +107,9 @@ config SMARTMETER_FACTORY_RESET_GPIO
     range 0 30
     default 9
     help
-        Hold the XIAO BOOT button for five seconds while the application is
-        running to erase Matter fabrics and Thread credentials.
+        Hold BOOT for three seconds, then release, to toggle the antenna
+        with three quick LED flashes and restart. Hold for ten seconds
+        to erase Matter fabrics and Thread credentials.
 
 config SMARTMETER_MIN_UPDATE_INTERVAL_SECONDS
     int "Minimum Matter report interval (seconds)"

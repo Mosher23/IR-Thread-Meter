@@ -23,16 +23,24 @@ using A = BootButtonGestures::Action;
 constexpr int ESP_OK = 0;
 using esp_err_t = int;
 bool g_external_antenna = false, saved = false, fail_save = false;
-int writes = 0, restarts = 0;
+int writes = 0, restarts = 0, confirmations = 0, last_operation = 0;
+bool fail_led = false;
 #define ESP_LOGW(...) ((void)reason)
 #define ESP_LOGE(...) ((void)0)
 int board_config_set_antenna(bool value) {
     ++writes;
+    last_operation = 1;
     if (fail_save) return 77;
     saved = value;
     return ESP_OK;
 }
-void esp_restart() { ++restarts; }
+int smart_meter_confirm_antenna_toggle() {
+    assert(last_operation == 1 && !fail_save); // Save before success feedback.
+    last_operation = 2;
+    ++confirmations;
+    return fail_led ? 88 : ESP_OK;
+}
+void esp_restart() { assert(last_operation == 2); last_operation = 3; ++restarts; }
 __ACTION__
 A hold(uint32_t duration, uint32_t start = 0) {
     BootButtonGestures b;
@@ -92,7 +100,11 @@ int main() {
     assert(!saved && writes == 2 && restarts == 2);
     fail_save = true;
     toggle_antenna_and_restart("test");
-    assert(!saved && writes == 3 && restarts == 2);
+    assert(!saved && writes == 3 && restarts == 2 && confirmations == 2);
+    fail_save = false;
+    fail_led = true;
+    toggle_antenna_and_restart("test");
+    assert(!saved && writes == 4 && restarts == 3 && confirmations == 3); // LED failure still recovers.
 }
 '''.replace("__ACTION__", action)
         with tempfile.TemporaryDirectory() as directory:

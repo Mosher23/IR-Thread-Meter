@@ -86,11 +86,12 @@ through HACS; its version is independent of the XIAO firmware version.
 
 ### Select the antenna
 
-The `1.19-test3` candidate restores the **v1.12 single Electrical Meter**
+The `1.19-test4` candidate restores the **v1.12 single Electrical Meter**
 layout. Its original On/Off cluster provides the native HA antenna control;
 there is no separate outlet endpoint for Apple Home to discover. The intended
 Apple presentation is the energy meter shown in the user's v1.12 screenshots.
-This rebuild still requires verification in Apple Home.
+The user confirmed the native meter presentation works in `1.19-test3`.
+This candidate retains that model and adds the LED confirmation below.
 
 **Off means the built-in ceramic antenna; On means the external U.FL/IPEX
 antenna.** In HA, enable the original meter antenna entity if it was disabled
@@ -99,13 +100,14 @@ entities if antenna control should remain in HA only. The companion's
 **Active antenna** diagnostic shows the saved selection.
 
 Use one universal OTA for either saved antenna choice. The version is
-`1.19-test3` (numeric 22), allowing installation over the previous test builds.
+`1.19-test4` (numeric 23), allowing installation over the previous test builds.
 See the [current test guide](docs/V112_HA_ANTENNA_TESTING.md).
 
 Connect the external antenna before selecting it. BOOT offers local recovery:
 
-- **Hold for 3 seconds, then release:** toggle the saved antenna and restart.
-- **Three short taps:** the same antenna toggle and restart.
+- **Hold for 3 seconds, then release:** toggle the saved antenna, flash the
+  status LED three times quickly, and restart.
+- **Three short taps:** the same antenna toggle, LED confirmation and restart.
 - **Hold for 10 seconds:** factory-reset Matter pairing and Thread credentials.
 
 Antenna gestures preserve pairings, serial number and Matter setup code. The

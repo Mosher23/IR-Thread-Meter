@@ -1,10 +1,12 @@
 # v1.12 meter presentation, HA antenna control and BOOT gestures
 
-Firmware **1.19-test3**, numeric software version **22**, removes the separate
+Firmware **1.19-test4**, numeric software version **23**, removes the separate
 antenna outlet introduced after v1.12. It keeps the original meter endpoint
 and its On/Off cluster, which HA can expose as its native antenna switch.
 The intended Apple Home presentation is only the native energy meter seen in
-the user's v1.12 screenshots. Rebuilt Apple behavior remains unverified.
+the user's v1.12 screenshots. The user confirmed test3 works in Apple Home;
+test4 retains that endpoint model and adds LED confirmation. Its LED behavior
+still needs a hardware check.
 
 ## Matter and HA model
 
@@ -30,13 +32,15 @@ HA HomeKit Bridge filters to avoid exporting a separate HAP control to Apple.
 
 | Gesture while firmware is running | Action |
 | --- | --- |
-| Hold 3–under 10 seconds, then release | Save the opposite antenna and reboot |
+| Hold 3–under 10 seconds, then release | Save the opposite antenna, flash the LED three times quickly, and reboot |
 | Three short taps, each 50–700 ms with no gap over 2 seconds | Same antenna toggle and reboot |
 | Hold 10 seconds | Matter factory reset |
 
 The antenna hold waits for release so a longer factory-reset hold never toggles
 the antenna first. Factory reset no longer triggers at five seconds. A failed
-save does not reboot or alter the selected antenna. Antenna recovery gestures
+save does not flash the confirmation, reboot or alter the selected antenna.
+The confirmation uses three 80 ms on / 80 ms off flashes on the onboard
+status LED (GPIO15), overriding breathing and receive pulses before reboot. Antenna recovery gestures
 preserve pairing, serial number and setup code. Timing uses unsigned elapsed
 milliseconds and handles counter wrap.
 
@@ -45,7 +49,7 @@ milliseconds and handles counter wrap.
 1. Install the single universal `IR_Power_Meter.ota` using Matter Server's local
    firmware upload. Keep power connected through reboot and the health check.
    This test build is excluded from the companion's stable-release discovery.
-2. Confirm `1.19-test3` / 22. Use the configured HA MCP server for HA operations.
+2. Confirm `1.19-test4` / 23. Use the configured HA MCP server for HA operations.
    Verify the model above and valid, changing native Power/Energy values.
 3. Re-enable the original meter antenna entity if it was disabled. Confirm it
    agrees with the companion's Active antenna diagnostic. A stale endpoint-2
