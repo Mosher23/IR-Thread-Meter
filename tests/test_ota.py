@@ -53,6 +53,15 @@ class OtaValidationTests(unittest.TestCase):
     def test_valid_image(self):
         ota.validate_image(image_fixture(), self.release(manifest_fixture()))
 
+    def test_release_label_can_restart_without_downgrading_numeric_version(self):
+        image = image_fixture(version=24, version_string="1.2", **{"6": 23})
+        data = dict(manifest_fixture(image), software_version=24, version_string="1.2",
+                    max_version=23,
+                    url="https://github.com/Mosher23/IR-Thread-Meter/releases/download/v1.2/IR_Power_Meter.ota")
+        release = ota.parse_manifest(data, "v1.2", {data["url"]})
+        ota.validate_image(image, release)
+        self.assertEqual((release.version, release.version_string), (24, "1.2"))
+
     def test_corruption(self):
         image = image_fixture()
         with self.assertRaises(ValueError):

@@ -1,9 +1,16 @@
 # ⚡ SML over Matter/Thread
 
-Use a Seeed XIAO ESP32-C6 and an optical SML head to read an electricity meter
-over Matter/Thread. Home Assistant's built-in **Matter** integration shows
-Energy and Power. The optional **SML over Matter/Thread** companion adds diagnostics,
-optical PIN entry, and GitHub firmware updates.
+Read an electricity meter's **SML data through its infrared interface** using
+a Seeed XIAO ESP32-C6, and send the readings over **Matter/Thread**. Home
+Assistant shows native **Energy**, **Power**, and **External antenna** controls.
+Apple Home displays the energy meter without a separate antenna outlet.
+The optional companion adds diagnostics, optical PIN entry, and GitHub OTA
+updates.
+
+**Latest firmware: [v1.2](https://github.com/Mosher23/IR-Thread-Meter/releases/tag/v1.2).**
+One universal OTA image supports either antenna. The product and discovery
+name is **SML over Matter/Thread**; controllers may retain an existing name
+until you rename it in their app.
 
 ✅ **Tested with an EMH eHZB electricity meter.** Other meters need compatible
 SML output and OBIS values; optical PIN and display controls depend on the
@@ -32,8 +39,9 @@ See [wiring details](firmware/README.md#hardware).
 Follow the [first-time USB flashing guide](BOOTSTRAP_AND_OTA.md#first-time-usb-flash)
 and choose a [release with USB bootstrap files](https://github.com/Mosher23/IR-Thread-Meter/releases).
 OTA-only releases are for boards that have already been set up.
-Choose the internal antenna image, or the external image if an external
-antenna is attached.
+For an already configured board, use the single **IR_Power_Meter.ota** from
+[v1.2](https://github.com/Mosher23/IR-Thread-Meter/releases/tag/v1.2). It keeps
+the saved antenna selection. This OTA release does not include USB flash files.
 
 ### Add the meter to Matter
 
@@ -75,7 +83,7 @@ installation, copy `custom_components/smartmeter` to
 
 | Integration | Entities and controls |
 | --- | --- |
-| Home Assistant Matter | Native **Energy**, **Power**, and the original meter **External antenna** on/off control. |
+| Home Assistant Matter | Native **Energy**, **Power**, and **External antenna** on/off control. |
 | SML over Matter/Thread companion | **OBIS Received**, **Manufacturer**, **Meter ID**, and **Active antenna** diagnostics; **Meter PIN**, **Send PIN**, **Short light pulse**, **Long light pulse**, and **OTA Firmware**. |
 
 The companion uses your existing Matter device and does not create another
@@ -84,24 +92,23 @@ through HACS; its version is independent of the XIAO firmware version.
 
 ## 🎛️ Using the meter
 
+### Apple Home and Home Assistant
+
+The firmware exposes one **Electrical Meter** endpoint. Apple Home shows the
+meter and its power reading in Energy; Home Assistant also exposes the meter's
+On/Off cluster as **External antenna**. There is no separate outlet endpoint.
+This layout was confirmed working in Apple Home during development.
+
+Attach the IR head to a transmitting meter to receive live power readings.
+Keep **External antenna** out of any HA **HomeKit Bridge** exports if you want
+antenna control only in HA. Controller presentation differs; the firmware does
+not apply separate access permissions for HA and Apple Home.
+
 ### Select the antenna
 
-The `1.19-test4` candidate restores the **v1.12 single Electrical Meter**
-layout. Its original On/Off cluster provides the native HA antenna control;
-there is no separate outlet endpoint for Apple Home to discover. The intended
-Apple presentation is the energy meter shown in the user's v1.12 screenshots.
-The user confirmed the native meter presentation works in `1.19-test3`.
-This candidate retains that model and adds the LED confirmation below.
-
-**Off means the built-in ceramic antenna; On means the external U.FL/IPEX
-antenna.** In HA, enable the original meter antenna entity if it was disabled
-while testing the separate endpoint. Keep it out of HomeKit Bridge's selected
-entities if antenna control should remain in HA only. The companion's
-**Active antenna** diagnostic shows the saved selection.
-
-Use one universal OTA for either saved antenna choice. The version is
-`1.19-test4` (numeric 23), allowing installation over the previous test builds.
-See the [current test guide](docs/V112_HA_ANTENNA_TESTING.md).
+**Off = built-in ceramic antenna. On = external U.FL/IPEX antenna.**
+Use the native HA **External antenna** control; the companion's **Active antenna**
+diagnostic shows the saved selection. The same universal OTA serves both choices.
 
 Connect the external antenna before selecting it. BOOT offers local recovery:
 
@@ -110,6 +117,7 @@ Connect the external antenna before selecting it. BOOT offers local recovery:
 - **Three short taps:** the same antenna toggle, LED confirmation and restart.
 - **Hold for 10 seconds:** factory-reset Matter pairing and Thread credentials.
 
+The three flashes confirm that the antenna choice was saved, before reboot.
 Antenna gestures preserve pairings, serial number and Matter setup code. The
 USB console also accepts `antenna internal` or `antenna external`.
 
@@ -136,7 +144,10 @@ screen unless you intend to clear those values.
 
 ## 🔄 Firmware updates
 
-Open the companion device's **OTA Firmware** entity in Home Assistant.
+Update the HA companion through HACS first, then open its **OTA Firmware**
+entity in Home Assistant. Companion **2.1.4** uses Matter's numeric version
+order, so the `v1.2` label is correctly offered after earlier release labels.
+Refresh **OTA Firmware** to check immediately.
 Click **Install** when a compatible newer release appears. The image is
 downloaded from GitHub, validated, transferred via Matter Server, and followed
 by a XIAO reboot. **Updates never install
@@ -155,7 +166,7 @@ See the [USB and OTA guide](BOOTSTRAP_AND_OTA.md#update-over-thread).
 | Sending a PIN does not change the meter display | Check GPIO16 → head RX, transmit support, and optical control-point alignment. |
 | OTA Firmware offers no update | Check `compatibility_issue` and `last_error` in Developer tools → States. The GitHub check runs every six hours; refresh the entity to check sooner. |
 | Device disconnects after changing the antenna | Check that the selected antenna is attached. Tap BOOT three times while running to toggle to the other antenna, or select one with `antenna internal` / `antenna external` in the USB console. |
-| External antenna control is missing in HA | Run **Interview** in Matter Server, then reload **Matter**. The control is a separate endpoint and may appear as an outlet. |
+| External antenna control is missing in HA | Check disabled entities on the Matter device and enable **External antenna**. If needed, run **Interview** in Matter Server and reload **Matter**. |
 
 ## 📚 More information
 

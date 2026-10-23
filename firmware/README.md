@@ -14,7 +14,7 @@ over the ESP32-C6's built-in Thread radio.
 - Manufacturer: `SimpleIdeas`
 - Product and commissionable name: `SML over Matter/Thread`
 - Development VID/PID: `0xFFF1` / `0x8000`
-- Software version: `23` (`1.19-test4`, v1.12 meter / HA antenna candidate)
+- Software version: `24` (`1.2`)
 - Hardware version: `1` (`1.0`)
 - Development serial number: `00000001`
 - ESP-IDF project name: `IR_Meter_Thread_Matter`
@@ -138,18 +138,17 @@ setting for a new board. Both choices drive GPIO3 low before configuring
 GPIO14: low for the internal ceramic antenna, high for external U.FL/IPEX,
 following the [official Seeed RF-switch sequence](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/#hardware-overview).
 
-The `1.19-test4` candidate uses the original v1.12 single **Electrical Meter**
+Firmware `1.2` uses a single **Electrical Meter**
 (`0x0514`) on endpoint 1: power (`0x0090`), energy (`0x0091`), antenna On/Off
 (`0x0006`), PIN input and vendor diagnostics. No second application endpoint,
 On/Off Plug-in Unit, added Electrical Sensor type, label provider or Power
 Topology server is created. The original meter cluster construction is retained.
 
-HA exposes the original On/Off cluster as a native antenna control. If its
-entity was disabled during the separate-endpoint tests, re-enable it and let
-Matter discovery refresh. Exclude that HA entity from HomeKit Bridge if it
-should not be bridged to Apple. This uses the controller presentation observed
-on v1.12; it does not introduce per-fabric descriptor filtering or claim that
-Apple is denied protocol-level access to the On/Off attribute.
+HA exposes the On/Off cluster as a native antenna control. If the control
+is missing, check disabled entities and let Matter discovery refresh. Exclude that HA entity from HomeKit Bridge if it
+should not be bridged to Apple. This uses the controller presentation confirmed
+during development; it does not deny Apple protocol-level access to the On/Off
+attribute.
 
 **Off = internal, On = external.** The saved `board_cfg` selection remains
 authoritative during startup. The companion diagnostic reflects this setting.
@@ -159,16 +158,15 @@ a remote reverse command.
 While firmware is running, **hold BOOT for at least 3 seconds and release before
 10 seconds** to toggle the saved antenna, flash the status LED three times
 quickly, and restart. Three short BOOT taps still perform the same action. Neither antenna gesture erases pairings. A
-**10-second hold** performs the Matter factory reset; this longer threshold
-replaces the old 5-second reset to distinguish it from antenna selection.
+**10-second hold** performs the Matter factory reset.
 The USB console also accepts `antenna internal` or `antenna external`.
 
-Numeric version **23** (`1.19-test4`) permits OTA over the version-22 candidate.
-The one universal image supports either saved antenna choice. The user
-confirmed the native meter presentation in test3; test4 keeps the same model
-and adds three quick status LED flashes before an antenna-gesture reboot.
-LED timing and household aggregation still need physical validation; see the
-[current test guide](../docs/V112_HA_ANTENNA_TESTING.md).
+The release label is **1.2** and its Matter software version is **24**.
+Matter orders updates by the numeric version, independently of the display label.
+One universal OTA supports either saved antenna choice. Antenna gestures show
+three quick flashes (80 ms on / 80 ms off) on the onboard status LED before
+restarting. The LED pattern overrides breathing and receive pulses.
+See [release validation](../docs/RELEASE_TESTING.md) for test coverage.
 
 To change pins, baud rate, or report intervals:
 

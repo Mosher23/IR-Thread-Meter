@@ -123,6 +123,11 @@ class GitHubFirmwareUpdate(UpdateEntity):
             return f"{value} ({self._release.version})" if value == self.installed_version else value
         return self.installed_version if self._error is None else None
 
+    def version_is_newer(self, latest_version: str, installed_version: str) -> bool:
+        """Follow Matter's numeric update order, independent of release labels."""
+        current = self._attributes().get("0/40/9")
+        return bool(self._release and type(current) is int and self._release.version > current)
+
     @property
     def release_url(self):
         return self._release.notes_url if self._release else None

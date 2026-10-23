@@ -131,6 +131,32 @@ class UpdateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.entity.supported_features, Features.RELEASE_NOTES)
         self.client.upload_ota_file.assert_not_awaited()
 
+    async def test_shorter_release_label_uses_numeric_matter_update_order(self):
+        image = image_fixture(version=24, version_string="1.2", **{"6": 23})
+        manifest = dict(manifest_fixture(image), software_version=24,
+                        version_string="1.2", max_version=23,
+                        url="https://github.com/Mosher23/IR-Thread-Meter/releases/download/v1.2/IR_Power_Meter.ota")
+        response = json.dumps({"tag_name": "v1.2", "draft": False, "prerelease": False,
+                               "assets": [{"browser_download_url": manifest["url"]},
+                                          {"browser_download_url": manifest["url"].replace(
+                                              "IR_Power_Meter.ota", "ota-manifest.json")}]}).encode()
+        self.attrs.update({"0/40/9": 19, "0/40/10": "1.18"})
+        with patch.object(update, "_download", AsyncMock(side_effect=[
+                response, json.dumps(manifest).encode()])):
+            await self.entity.async_update()
+        self.assertEqual(self.entity.latest_version, "1.2")
+        self.assertTrue(self.entity.version_is_newer("1.2", "1.18"))
+        self.attrs.update({"0/40/9": 23, "0/40/10": "1.19-test4"})
+        self.assertTrue(self.entity.version_is_newer("1.2", "1.19-test4"))
+        for current in (24, 25, None, True):
+            self.attrs["0/40/9"] = current
+            self.assertFalse(self.entity.version_is_newer("1.2", "1.19-test4"))
+        self.entity._release = None
+        self.attrs["0/40/9"] = 23
+        self.assertFalse(self.entity.version_is_newer("1.2", "1.19-test4"))
+        self.client.upload_ota_file.assert_not_awaited()
+        self.client.update_node.assert_not_awaited()
+
     async def test_empty_repository_is_up_to_date_not_unknown(self):
         with patch.object(update, "_download", AsyncMock(return_value=None)):
             await self.entity.async_update()

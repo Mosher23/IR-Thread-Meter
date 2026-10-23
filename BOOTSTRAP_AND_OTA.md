@@ -67,22 +67,25 @@ disconnects Thread, use the XIAO's USB serial console command
 three times while the firmware is running. A Matter
 factory reset does not change the saved antenna setting.
 
-The **Smart Meter** outlet control is on Matter endpoint 2 and
-uses the plug-in unit device type. On means external, Off means internal.
-Controllers may display it with an outlet icon or a generic name. Meter
-measurements, PIN commands, and read-only diagnostics remain on endpoint 1.
-Firmware 1.16 uses Electrical Sensor on endpoint 1 with whole-device
-NodeTopology, leaving the outlet as the sole application device type. It does
-not duplicate or relocate power and energy readings. Apple Home tile rendering
-still needs hardware verification; see the
-[Apple Home test guide](docs/APPLE_HOME_TESTING.md) before installation.
-See [antenna control and discovery](firmware/README.md#antenna-selection)
-for details. Connect an external antenna before selecting it.
+Current firmware exposes one Electrical Meter endpoint. HA also exposes its
+On/Off cluster as the antenna control; Apple Home shows the meter without a
+separate antenna outlet. Off selects internal; On selects external. Keep the
+HA antenna entity out of any HomeKit Bridge exports.
+
+Hold BOOT for 3 seconds and release to toggle the saved antenna. The status
+LED flashes three times quickly before restart. Three short taps do the same;
+a 10-second hold factory-resets Matter pairing. Connect an external antenna
+before selecting it. See [antenna controls](firmware/README.md#antenna-selection).
 
 After reboot, [add the meter to Matter](README.md#add-the-meter-to-matter)
 and [install the optional companion](README.md#install-the-home-assistant-companion).
 
 ## Update over Thread
+
+The latest [v1.2 release](https://github.com/Mosher23/IR-Thread-Meter/releases/tag/v1.2)
+contains one universal OTA image. Update the HA companion through HACS to
+**2.1.4** before checking for it: update order follows Matter software version
+**24**, independently of the shorter display label.
 
 After flashing and commissioning the meter, use
 **SML over Matter/Thread → OTA Firmware** in Home Assistant:
@@ -127,7 +130,7 @@ text version markers together in `firmware/main/MatterProjConfig.h`,
 `firmware/CMakeLists.txt`, and `firmware/sdkconfig.defaults` as appropriate.
 
 Push tested source, then publish a stable GitHub release whose tag matches
-the firmware string version (for example, `v1.16`). GitHub Actions builds
+the firmware string version (for example, `v1.2`). GitHub Actions builds
 the pinned SDK, runs tests, checks the tag, and attaches individual assets
 with `ota-manifest.json` **last**. Do not replace published assets or reuse
 a Matter numeric software version. Test an image on an accessible meter
