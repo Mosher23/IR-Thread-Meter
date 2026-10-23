@@ -2,7 +2,7 @@
 
 Project: **SML over Matter/Thread**. Firmware display version: **1.20**.
 Matter software version: **24**. One universal OTA uses the saved antenna choice.
-The HA companion is version **2.1.4** and orders firmware updates numerically.
+The HA companion is version **2.1.5** and orders firmware updates numerically.
 
 ## Device model
 
