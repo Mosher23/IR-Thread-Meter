@@ -2,6 +2,25 @@
 
 ## Current result and compatibility candidate
 
+**1.19-test1 also failed the Apple Home acceptance check.** On 2026-10-23,
+the installed firmware was confirmed through HA MCP as software version 20 /
+1.19-test1. A refreshed interview confirmed endpoint 1 advertises only
+Electrical Sensor (`1296`), with EPM/EEM, TreeTopology FeatureMap `2`, and no
+children. Endpoint 2 remains an On/Off Plug-in Unit without metering clusters.
+The user removed and added the device again in Apple Home. Their screenshots
+show valid native HA power/energy readings while Apple Home shows only the
+antenna outlet and the other plug's consumption in Energy. The device-type-only
+experiment therefore did not resolve either meter visibility or its inclusion
+in the Energy view. Double-counting prevention remains unverified because
+Apple has not included the independent meter at all.
+
+Do not repeat re-pairing or promote this candidate as a fix. This result rules
+out an old installed image and missing IR readings for the supplied test;
+it does not establish that all standalone Matter meters are unsupported by
+Apple. The remaining compatibility question is how Apple handles this
+measurement endpoint and its topology/composition. No further firmware change
+has been validated to resolve that question.
+
 **1.18 has not passed the Apple Home acceptance check.** On 2026-10-23,
 the user reported the same omission after removing and adding the device on
 1.18 and testing with the reader attached. Apple Home reports firmware 1.18,

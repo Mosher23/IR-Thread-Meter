@@ -108,8 +108,9 @@ If the control is missing in Home Assistant, run **Interview** in Matter
 Server and reload the **Matter** integration. Apple Home can cache the device
 model, so verify that it has discovered the independent meter and antenna
 control. **Apple Home still omits the independent meter in the reported 1.18
-test.** The measurement-only `1.19-test1` candidate is under investigation;
-its Apple display and energy aggregation are not yet verified. See the
+test.** The measurement-only `1.19-test1` candidate also failed after a fresh
+Apple pairing with valid HA readings. Apple compatibility remains unresolved;
+double-counting prevention has not been verified. See the
 [test guide](docs/APPLE_HOME_TESTING.md) and
 [antenna details](firmware/README.md#antenna-selection).
 
