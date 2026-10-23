@@ -1,6 +1,6 @@
-# v1.2 release validation
+# v1.20 release validation
 
-Project: **SML over Matter/Thread**. Firmware display version: **1.2**.
+Project: **SML over Matter/Thread**. Firmware display version: **1.20**.
 Matter software version: **24**. One universal OTA uses the saved antenna choice.
 The HA companion is version **2.1.4** and orders firmware updates numerically.
 
@@ -43,7 +43,7 @@ asset digests are checked before publication.
 ## Hardware status
 
 The user confirmed that the single-meter model works in Apple Home. The new
-LED pattern and this final v1.2 binary still require a physical check. Validate
+LED pattern and this final v1.20 binary still require a physical check. Validate
 with the reader powered and attached to a transmitting meter: confirm live
 readings, antenna changes in both directions, three LED flashes, restart,
 pairing retention and recovery of readings. Do not factory-reset a production

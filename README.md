@@ -7,7 +7,7 @@ Apple Home displays the energy meter without a separate antenna outlet.
 The optional companion adds diagnostics, optical PIN entry, and GitHub OTA
 updates.
 
-**Latest firmware: [v1.2](https://github.com/Mosher23/IR-Thread-Meter/releases/tag/v1.2).**
+**Latest firmware: [v1.20](https://github.com/Mosher23/IR-Thread-Meter/releases/tag/v1.20).**
 One universal OTA image supports either antenna. The product and discovery
 name is **SML over Matter/Thread**; controllers may retain an existing name
 until you rename it in their app.
@@ -40,7 +40,7 @@ Follow the [first-time USB flashing guide](BOOTSTRAP_AND_OTA.md#first-time-usb-f
 and choose a [release with USB bootstrap files](https://github.com/Mosher23/IR-Thread-Meter/releases).
 OTA-only releases are for boards that have already been set up.
 For an already configured board, use the single **IR_Power_Meter.ota** from
-[v1.2](https://github.com/Mosher23/IR-Thread-Meter/releases/tag/v1.2). It keeps
+[v1.20](https://github.com/Mosher23/IR-Thread-Meter/releases/tag/v1.20). It keeps
 the saved antenna selection. This OTA release does not include USB flash files.
 
 ### Add the meter to Matter
@@ -146,7 +146,7 @@ screen unless you intend to clear those values.
 
 Update the HA companion through HACS first, then open its **OTA Firmware**
 entity in Home Assistant. Companion **2.1.4** uses Matter's numeric version
-order, so the `v1.2` label is correctly offered after earlier release labels.
+order when determining which firmware updates are available.
 Refresh **OTA Firmware** to check immediately.
 Click **Install** when a compatible newer release appears. The image is
 downloaded from GitHub, validated, transferred via Matter Server, and followed

@@ -14,7 +14,7 @@ over the ESP32-C6's built-in Thread radio.
 - Manufacturer: `SimpleIdeas`
 - Product and commissionable name: `SML over Matter/Thread`
 - Development VID/PID: `0xFFF1` / `0x8000`
-- Software version: `24` (`1.2`)
+- Software version: `24` (`1.20`)
 - Hardware version: `1` (`1.0`)
 - Development serial number: `00000001`
 - ESP-IDF project name: `IR_Meter_Thread_Matter`
@@ -138,7 +138,7 @@ setting for a new board. Both choices drive GPIO3 low before configuring
 GPIO14: low for the internal ceramic antenna, high for external U.FL/IPEX,
 following the [official Seeed RF-switch sequence](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/#hardware-overview).
 
-Firmware `1.2` uses a single **Electrical Meter**
+Firmware `1.20` uses a single **Electrical Meter**
 (`0x0514`) on endpoint 1: power (`0x0090`), energy (`0x0091`), antenna On/Off
 (`0x0006`), PIN input and vendor diagnostics. No second application endpoint,
 On/Off Plug-in Unit, added Electrical Sensor type, label provider or Power
@@ -161,7 +161,7 @@ quickly, and restart. Three short BOOT taps still perform the same action. Neith
 **10-second hold** performs the Matter factory reset.
 The USB console also accepts `antenna internal` or `antenna external`.
 
-The release label is **1.2** and its Matter software version is **24**.
+The release label is **1.20** and its Matter software version is **24**.
 Matter orders updates by the numeric version, independently of the display label.
 One universal OTA supports either saved antenna choice. Antenna gestures show
 three quick flashes (80 ms on / 80 ms off) on the onboard status LED before

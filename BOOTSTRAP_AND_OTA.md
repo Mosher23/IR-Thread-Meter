@@ -82,10 +82,10 @@ and [install the optional companion](README.md#install-the-home-assistant-compan
 
 ## Update over Thread
 
-The latest [v1.2 release](https://github.com/Mosher23/IR-Thread-Meter/releases/tag/v1.2)
+The latest [v1.20 release](https://github.com/Mosher23/IR-Thread-Meter/releases/tag/v1.20)
 contains one universal OTA image. Update the HA companion through HACS to
 **2.1.4** before checking for it: update order follows Matter software version
-**24**, independently of the shorter display label.
+**24**, independently of the display label.
 
 After flashing and commissioning the meter, use
 **SML over Matter/Thread → OTA Firmware** in Home Assistant:
@@ -130,7 +130,7 @@ text version markers together in `firmware/main/MatterProjConfig.h`,
 `firmware/CMakeLists.txt`, and `firmware/sdkconfig.defaults` as appropriate.
 
 Push tested source, then publish a stable GitHub release whose tag matches
-the firmware string version (for example, `v1.2`). GitHub Actions builds
+the firmware string version (for example, `v1.20`). GitHub Actions builds
 the pinned SDK, runs tests, checks the tag, and attaches individual assets
 with `ota-manifest.json` **last**. Do not replace published assets or reuse
 a Matter numeric software version. Test an image on an accessible meter
